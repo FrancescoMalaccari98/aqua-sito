@@ -22,6 +22,14 @@ Specchio digitale: la webcam riprende chi c'è davanti e lo schermo mostra il ri
 
 Le impostazioni (filtro, intensità, videocamera, orientamento, cambio automatico, comandi nascosti) restano memorizzate sul computer dello specchio.
 
+## Riconoscimento da lontano, con occhiali o in due
+
+- **Distanza** (nel pannello): *Automatica* analizza tutta l'immagine e, se non trova nessuno, prova da sola uno zoom 1,8× al centro, così i volti lontani diventano abbastanza grandi per il riconoscimento. *Vicino*, *Lontano* (1,5×) e *Molto lontano* (2×) fissano la scelta. Lo zoom riguarda solo l'analisi: l'immagine dello specchio non cambia.
+- Un volto che sfugge per un istante (occhiali, testa girata) conserva l'effetto per mezzo secondo invece di sparire e riapparire. Un volto nuovo riceve l'effetto solo dopo tre riconoscimenti di fila, così non compaiono deformazioni su volti "fantasma".
+- Con più persone ognuna tiene il proprio effetto: i volti vengono riabbinati a ogni fotogramma in base alla posizione.
+- Per i risultati migliori: videocamera all'altezza degli occhi e al centro dello schermo, viso illuminato da davanti (non luce alle spalle), non più di 3 persone insieme.
+- Con il tasto D compaiono i dati tecnici: volti trovati, tempo di analisi, zoom in uso.
+
 ## Orientamento dello schermo
 
 Nel pannello, alla voce **Orientamento schermo**:
@@ -35,7 +43,7 @@ Per una TV montata in verticale: si sceglie la rotazione con cui il volto appare
 
 ## Prova senza webcam
 
-`.../smart-mirror/?prova` mostra una griglia con un volto finto al posto della webcam: serve per controllare i filtri senza nessuno davanti allo schermo.
+`.../smart-mirror/?prova` mostra una griglia con un volto finto al posto della webcam: serve per controllare i filtri senza nessuno davanti allo schermo. `?prova=ai` usa la stessa griglia ma con il riconoscimento vero, per controllare che l'intelligenza artificiale si avvii.
 
 ## Come funziona
 

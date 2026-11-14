@@ -51,6 +51,15 @@
         <output id="strengthValue" for="strength">75%</output>
       </label>
       <label class="control">
+        <span>Distanza</span>
+        <select id="range" title="Quanto sono lontane le persone dallo specchio">
+          <option value="auto">Automatica</option>
+          <option value="near">Vicino · tutta l'immagine</option>
+          <option value="far">Lontano · zoom 1,5×</option>
+          <option value="veryfar">Molto lontano · zoom 2×</option>
+        </select>
+      </label>
+      <label class="control">
         <span>Videocamera</span>
         <select id="camera"><option value="">Predefinita</option></select>
       </label>
@@ -110,6 +119,6 @@
         'Lo specchio non funziona aperto come file: avvia il server e apri http://localhost:8080/smart-mirror/ (oppure l\'indirizzo online https://…/aqua-sito/smart-mirror/).';
     }
   </script>
-  <script type="module" src="mirror.js?v=6"></script>
+  <script type="module" src="mirror.js?v=8"></script>
 </body>
 </html>

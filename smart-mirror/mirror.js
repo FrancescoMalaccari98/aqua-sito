@@ -39,16 +39,19 @@ const FILTERS = [
 const STORE_KEY = 'aqua-mirror';
 const DEFAULT_ROTATION = 0;
 const settings = {
-  filter: 1, strength: 75, fit: 'cover', rotation: DEFAULT_ROTATION, captions: true,
+  filter: 1, strength: 75, fit: 'cover', rotation: DEFAULT_ROTATION, captions: true, range: 'auto',
   auto: false, seconds: 10, camera: '', uiHidden: false,
 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) { /* private mode: defaults */ }
 settings.rotation = [0, 1, 2, 3].includes(+settings.rotation) ? +settings.rotation : DEFAULT_ROTATION;
+if (!['auto', 'near', 'far', 'veryfar'].includes(settings.range)) settings.range = 'auto';
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) { /* ignore */ } };
 
 // Developer test mode (?prova): a generated grid replaces the webcam and a fake face sits in the middle.
 // Useful to check every warp without a camera or a person in front of the screen.
 const TEST_MODE = new URLSearchParams(location.search).has('prova');
+// ?prova=ai runs the real face AI on the grid instead of the fake face (checks the detection path)
+const TEST_AI = new URLSearchParams(location.search).get('prova') === 'ai';
 
 /* ---------- Messages ---------- */
 let quietTimer = 0;
@@ -138,6 +141,11 @@ function setRotation(r) {
 rotationEl.addEventListener('change', () => setRotation(+rotationEl.value));
 $('resetRotation').addEventListener('click', () => setRotation(DEFAULT_ROTATION));
 setRotation(settings.rotation);
+
+// Distance of the people from the mirror: how much of the frame the face AI analyses
+const rangeEl = $('range');
+rangeEl.value = settings.range;
+rangeEl.addEventListener('change', () => { settings.range = rangeEl.value; lastZoomChange = performance.now(); save(); });
 
 // Captions on the mirror (filter name, "come closer"): can be switched off for an image-only screen
 const captionsEl = $('captions');
@@ -420,15 +428,18 @@ canvas.addEventListener('webglcontextrestored', () => location.reload());
 class OneEuro {
   constructor(minCutoff = 1.2, beta = 14, dCutoff = 1.0) { Object.assign(this, { minCutoff, beta, dCutoff, x: null, dx: 0 }); }
   static alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); }
-  filter(value, dt) {
+  filter(value, dt, minCutoff = this.minCutoff, beta = this.beta) {
     if (this.x === null) { this.x = value; return value; }
     const dx = (value - this.x) / dt;
     this.dx += OneEuro.alpha(this.dCutoff, dt) * (dx - this.dx);
-    const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
+    const cutoff = minCutoff + beta * Math.abs(this.dx);
     this.x += OneEuro.alpha(cutoff, dt) * (value - this.x);
     return this.x;
   }
 }
+
+const HOLD_MS = 450;     // a face missed for a moment (glasses, a turn of the head) keeps its effect
+const CONFIRM_HITS = 3;  // detections needed before a new face gets an effect: no "ghost" faces
 
 // Parameter vector of a face, in square texture space:
 // 0-1 centre · 2-3 cos/sin of the roll · 4 half width · 5 half height · 6-7 eye A · 8-9 eye B
@@ -452,36 +463,42 @@ function faceParams(lm, va) {
   ];
 }
 
-// Tracked faces keep their own smoothing and fade, and are matched between frames by position.
+// Tracked faces keep their own smoothing and fade. Detections are paired with tracks globally,
+// closest pairs first (distance measured in face widths), so two people never swap effects.
 let tracks = [];
 function updateTracks(detected, now) {
-  const used = new Set();
-  for (const raw of detected) {
-    let best = null;
-    let bestDist = Infinity;
-    for (const t of tracks) {
-      if (used.has(t)) continue;
-      const d = Math.hypot(t.raw[0] - raw[0], t.raw[1] - raw[1]);
-      if (d < bestDist) { bestDist = d; best = t; }
-    }
-    if (!best || bestDist > raw[4] * 1.2) {
-      best = { raw, value: Float32Array.from(raw), filters: raw.map(() => new OneEuro()), weight: 0, seen: now };
-      tracks.push(best);
-    }
-    best.raw = raw;
-    best.seen = now;
-    used.add(best);
+  const pairs = [];
+  detected.forEach((raw, d) => tracks.forEach((t, k) => {
+    pairs.push([Math.hypot(t.raw[0] - raw[0], t.raw[1] - raw[1]) / Math.max(raw[4], t.raw[4]), d, k]);
+  }));
+  pairs.sort((a, b) => a[0] - b[0]);
+  const usedDetections = new Set();
+  const usedTracks = new Set();
+  for (const [dist, d, k] of pairs) {
+    if (dist > 1.3 || usedDetections.has(d) || usedTracks.has(k)) continue;
+    usedDetections.add(d);
+    usedTracks.add(k);
+    Object.assign(tracks[k], { raw: detected[d], seen: now, hits: tracks[k].hits + 1 });
   }
+  detected.forEach((raw, d) => {
+    if (!usedDetections.has(d)) {
+      tracks.push({ raw, value: Float32Array.from(raw), filters: raw.map(() => new OneEuro()), weight: 0, seen: now, hits: 1 });
+    }
+  });
 }
 function stepTracks(now, dt) {
   for (const t of tracks) {
-    for (let i = 0; i < PARAMS; i++) t.value[i] = t.filters[i].filter(t.raw[i], dt);
+    // far (small) faces have noisier points: smooth them more, and measure speed relative to the face size
+    const size = Math.max(0.02, t.value[4]);
+    const minCutoff = Math.min(1.4, Math.max(0.5, size * 8));
+    const beta = 14 * (0.15 / size);
+    for (let i = 0; i < PARAMS; i++) t.value[i] = t.filters[i].filter(t.raw[i], dt, minCutoff, beta);
     const n = Math.hypot(t.value[2], t.value[3]) || 1;
     t.value[2] /= n; t.value[3] /= n;
-    const visible = now - t.seen < 150;
-    t.weight = Math.min(1, Math.max(0, t.weight + (visible ? dt / 0.25 : -dt / 0.35)));
+    const visible = t.hits >= CONFIRM_HITS && now - t.seen < HOLD_MS;
+    t.weight = Math.min(1, Math.max(0, t.weight + (visible ? dt / 0.25 : -dt / 0.45)));
   }
-  tracks = tracks.filter((t) => t.weight > 0 || now - t.seen < 150);
+  tracks = tracks.filter((t) => t.weight > 0 || now - t.seen < HOLD_MS);
   tracks.sort((a, b) => b.weight - a.weight);
   faceUniforms.fill(0);
   const count = Math.min(MAX_FACES, tracks.length);
@@ -504,7 +521,9 @@ async function loadLandmarker() {
     const options = (d) => ({
       baseOptions: { modelAssetPath: `${base}models/face_landmarker.task`, delegate: d },
       runningMode: 'VIDEO', numFaces: MAX_FACES,
-      minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+      // lower than the defaults (0.5): faces with glasses, far away or in dim light still count;
+      // the confirmation in updateTracks keeps occasional false detections out
+      minFaceDetectionConfidence: 0.35, minFacePresenceConfidence: 0.4, minTrackingConfidence: 0.4,
     });
     // GPU is much faster; some computers only manage the CPU version
     for (const d of ['GPU', 'CPU']) {
@@ -543,7 +562,8 @@ async function startCamera() {
     }
     if (stream) stream.getTracks().forEach((t) => t.stop());
     note('Richiesta del permesso per la videocamera…', { sticky: true });
-    const video_ = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+    // Full HD when the camera allows it: far faces get more pixels for the AI and the image is sharper
+    const video_ = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
     if (settings.camera) video_.deviceId = { exact: settings.camera };
     else video_.facingMode = 'user';
     // If the camera never answers (macOS has not allowed this browser, or another app is using it),
@@ -635,15 +655,53 @@ function resize() {
   if (showDebug && (debugCanvas.width !== innerWidth || debugCanvas.height !== innerHeight)) { debugCanvas.width = innerWidth; debugCanvas.height = innerHeight; }
 }
 
+/* ---------- Detection area ----------
+   The face detector shrinks the whole camera frame to a small image, so far faces become too small
+   to be found. Analysing a zoomed central area makes them bigger for the AI (the mirror image itself
+   is not zoomed). "auto" alternates between the whole frame and a zoom while nobody is found,
+   and keeps the area that works. */
+const RANGE_ZOOM = { near: 1, far: 1.5, veryfar: 2 };
+const AUTO_ZOOMS = [1, 1.8];
+const detectCanvas = document.createElement('canvas');
+const detectCtx = detectCanvas.getContext('2d', { alpha: false });
+let autoZoomIndex = 0;
+let lastHit = 0;
+let lastZoomChange = 0;
+let zoomInUse = 1;
+
 function detect(now) {
-  if (TEST_MODE) { if (testFace) updateTracks([testFace], now); return; }
+  if (TEST_MODE && !TEST_AI) { if (testFace) updateTracks([testFace], now); return; }
   if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
   lastVideoTime = video.currentTime;
   const t0 = performance.now();
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const zoom = settings.range === 'auto' ? AUTO_ZOOMS[autoZoomIndex] : (RANGE_ZOOM[settings.range] || 1);
+  zoomInUse = zoom;
+  // centred area of the frame, same proportions as the camera image
+  const sx = (vw - vw / zoom) / 2;
+  const sy = (vh - vh / zoom) / 2;
   try {
-    const result = landmarker.detectForVideo(video, now);
-    const va = video.videoWidth / video.videoHeight;
-    updateTracks((result.faceLandmarks || []).map((lm) => faceParams(lm, va)), now);
+    let source = video;
+    if (zoom > 1) {
+      // the crop keeps its own pixels (no upscaling): what matters is that the face fills more of the image
+      const cw = Math.round(vw / zoom);
+      const ch = Math.round(vh / zoom);
+      if (detectCanvas.width !== cw || detectCanvas.height !== ch) { detectCanvas.width = cw; detectCanvas.height = ch; }
+      detectCtx.drawImage(video, sx, sy, vw / zoom, vh / zoom, 0, 0, cw, ch);
+      source = detectCanvas;
+    }
+    const result = landmarker.detectForVideo(source, now);
+    const found = result.faceLandmarks || [];
+    // landmarks are relative to the analysed area: bring them back to the whole camera frame
+    const toFrame = (lm) => (zoom > 1 ? lm.map((p) => ({ x: sx / vw + p.x / zoom, y: sy / vh + p.y / zoom })) : lm);
+    const va = vw / vh;
+    updateTracks(found.map((lm) => faceParams(toFrame(lm), va)), now);
+    if (found.length) lastHit = now;
+    else if (settings.range === 'auto' && now - lastHit > 1500 && now - lastZoomChange > 1500) {
+      autoZoomIndex = (autoZoomIndex + 1) % AUTO_ZOOMS.length;
+      lastZoomChange = now;
+    }
   } catch (err) { console.warn('Face Landmarker', err); }
   detectMs = detectMs * 0.9 + (performance.now() - t0) * 0.1;
 }
@@ -730,7 +788,7 @@ function drawDebug(faceCount) {
   g.fillRect(12, H - 40, 380, 28);
   g.fillStyle = '#ede6d8';
   g.font = '12px Manrope, system-ui, sans-serif';
-  g.fillText(`${fps} fps · volti ${faceCount} · AI ${delegate || (TEST_MODE ? 'prova' : '—')} ${detectMs.toFixed(1)} ms · ${video.videoWidth}×${video.videoHeight}`, 22, H - 21);
+  g.fillText(`${fps} fps · volti ${faceCount} · AI ${delegate || (TEST_MODE ? 'prova' : '—')} ${detectMs.toFixed(1)} ms · zoom ${zoomInUse}× · ${video.videoWidth}×${video.videoHeight}`, 22, H - 21);
 }
 
 /* ---------- Start ---------- */
@@ -745,4 +803,4 @@ try {
   note(`Errore della grafica: ${err.message}`, { sticky: true });
 }
 startCamera();
-if (!TEST_MODE) loadLandmarker();
+if (!TEST_MODE || TEST_AI) loadLandmarker();
