@@ -170,8 +170,11 @@ canvas.addEventListener('dblclick', () => setMenu(!document.body.classList.conta
 let showDebug = false;
 document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  // Letter shortcuts always work, even after using a menu or slider in the panel;
+  // arrows and space stay with the focused control (they change its value).
   const tag = document.activeElement?.tagName;
-  if ((tag === 'INPUT' || tag === 'SELECT') && e.key !== 'Escape') return;
+  const inControl = tag === 'INPUT' || tag === 'SELECT';
+  if (inControl && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) return;
   const k = e.key.toLowerCase();
   if (k === 'h' || k === 'm') setMenu(!document.body.classList.contains('ui-hidden'));
   else if (k === 'escape' && document.body.classList.contains('ui-hidden')) setMenu(false);
@@ -184,6 +187,8 @@ document.addEventListener('keydown', (e) => {
   else return;
   e.preventDefault();
 });
+// After picking an option, give the keyboard back to the mirror (shortcuts, arrows, space)
+document.getElementById('panel').addEventListener('change', (e) => { if (e.target.tagName === 'SELECT') e.target.blur(); });
 
 // Hide the mouse pointer after a few seconds without movement (kiosk screen)
 let idleTimer = 0;
