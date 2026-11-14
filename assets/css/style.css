@@ -327,6 +327,13 @@ figcaption { margin-top: 14px; font-size: 12px; letter-spacing: .06em; color: va
 .drink__cur { font-size: .7em; color: var(--mute); }
 .drink__glass { grid-column: 1; grid-row: 1; align-self: center; color: var(--brass); line-height: 0; }
 .drink__glass svg { width: 28px; height: 28px; }
+/* the name always sits in the second column, even when there is no glass icon */
+.drink__name { grid-column: 2; }
+/* categories without glasses (coffee, pastries, soft drinks): no empty icon column */
+.drinks--plain .drink { grid-template-columns: auto minmax(24px, 1fr) auto; }
+.drinks--plain .drink__name { grid-column: 1; }
+.drinks--plain .drink__notes, .drinks--plain .drink__bottle { grid-column: 1 / -1; }
+.drink__from { font-size: .7em; color: var(--mute); }
 .drink__bottle { grid-column: 2 / -1; margin-top: 4px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
 .drink__notes { grid-column: 2 / -1; margin-top: 8px; font-size: 14px; color: var(--stone); max-width: 52ch; transition: color .5s var(--ease); }
 .drink:hover .drink__name, .drink.is-active .drink__name { color: var(--brass); transform: translateX(8px); }
@@ -693,5 +700,6 @@ img[data-foto]:not([src]) { visibility: hidden; }
 .carta__top { display: flex; align-items: center; gap: 24px; }
 @media (max-width: 640px) {
   .carta .drink { column-gap: 12px; grid-template-columns: 26px auto minmax(16px, 1fr) auto; }
+  .carta .drinks--plain .drink { grid-template-columns: auto minmax(16px, 1fr) auto; }
   .carta .drink__glass svg { width: 24px; height: 24px; }
 }

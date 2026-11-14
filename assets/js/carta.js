@@ -66,14 +66,20 @@
       + `<span class="sr-only">Servito in ${esc(nome.toLowerCase())}</span></span>`;
   };
 
-  const price = (model, v) => (v.prezzo
-    ? `<span class="drink__price"><span class="drink__cur">${esc(model.valuta)}</span> ${esc(v.prezzo)}</span>`
-    : '<span class="drink__price"></span>');
+  // "da 4" in the file becomes "da € 4" (starting price); an empty price leaves the slot empty
+  const price = (model, v) => {
+    if (!v.prezzo) return '<span class="drink__price"></span>';
+    const m = v.prezzo.match(/^da\s+(.+)$/i);
+    const cur = `<span class="drink__cur">${esc(model.valuta)}</span>`;
+    return m
+      ? `<span class="drink__price"><span class="drink__from">da</span> ${cur} ${esc(m[1])}</span>`
+      : `<span class="drink__price">${cur} ${esc(v.prezzo)}</span>`;
+  };
 
   const drink = (model, v) => `
     <li class="drink"${v.bicchiere ? ` data-glass="${esc(v.bicchiere)}"` : ''}>
       ${glass(model, v.bicchiere, 'drink__glass')}
-      <span class="drink__name">${esc(v.nome)}</span><span class="drink__leader" aria-hidden="true"></span>${price(model, v)}
+      <span class="drink__name">${esc(v.nome)}</span>${v.prezzo ? `<span class="drink__leader" aria-hidden="true"></span>${price(model, v)}` : ''}
       ${v.ingredienti ? `<span class="drink__notes">${esc(v.ingredienti)}</span>` : ''}
       ${v.bottiglia ? `<span class="drink__bottle">Bottiglia ${esc(model.valuta)} ${esc(v.bottiglia)}</span>` : ''}
     </li>`;
@@ -94,7 +100,7 @@
         <section class="carta__cat" id="${esc(c.id)}" aria-labelledby="t-${esc(c.id)}">
           <h2 class="carta__title" id="t-${esc(c.id)}">${esc(c.titolo)}</h2>
           ${c.descrizione ? `<p class="carta__desc">${esc(c.descrizione)}</p>` : ''}
-          <ul class="drinks">${c.voci.map((v) => drink(model, v)).join('')}</ul>
+          <ul class="drinks${c.voci.some((v) => v.bicchiere) ? '' : ' drinks--plain'}">${c.voci.map((v) => drink(model, v)).join('')}</ul>
         </section>`).join('');
       page.querySelector('[data-carta-legend]').innerHTML = legend(model);
       page.classList.add('is-ready');
