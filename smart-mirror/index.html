@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b11">
+  <title>Smart Mirror Studio — Demo 2.0</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--blue:#6a9dff;--muted:#afbdd1}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b11;color:#fff}
+    #view,#decorations{position:fixed;inset:0;width:100%;height:100%;display:block}
+    #decorations{pointer-events:none}video{display:none}
+    #topbar{position:fixed;top:16px;left:16px;display:flex;flex-direction:column;gap:6px;max-width:min(680px,calc(100% - 32px));z-index:10;pointer-events:none}
+    #state{font-size:12px;line-height:1.4;border:1px solid #ffffff27;background:#101824d9;backdrop-filter:blur(12px);padding:9px 12px;border-radius:12px;width:fit-content;max-width:100%}
+    #stats{width:fit-content;background:#101824bb;border:1px solid #ffffff15;border-radius:9px;padding:6px 10px;font-variant-numeric:tabular-nums;color:#c4d5eb;font-size:11px}
+    .panel{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;width:min(890px,calc(100vw - 24px));max-height:min(76vh,730px);overflow-y:auto;overscroll-behavior:contain;background:#101724eb;backdrop-filter:blur(22px);border:1px solid #ffffff30;border-radius:19px;padding:17px 18px;box-shadow:0 22px 65px #000a;scrollbar-width:thin}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.brand{display:flex;align-items:center;gap:11px}.mark{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(135deg,#4871d9,#8c60f2);font-size:20px}.heading{font-size:17px;letter-spacing:-.3px;font-weight:750}.subheading{font-size:11px;color:#afbdd1;margin-top:2px}
+    button{cursor:pointer;color:#eef5ff;border:1px solid #ffffff25;background:#ffffff0e;border-radius:10px;padding:9px 11px;font:inherit;font-size:12px;white-space:nowrap}
+    button:hover{background:#ffffff22}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #8db5ff;outline-offset:2px}button.active{background:#366dea;border-color:#89b2ff;color:#fff}button[disabled]{opacity:.4;cursor:not-allowed}
+    .header-actions,.other-actions,.controls,.toggle-group{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+    .group{margin:12px 0 0}.grouptitle{display:flex;align-items:center;justify-content:space-between;color:#b8c7db;text-transform:uppercase;font-size:10px;font-weight:750;letter-spacing:1.1px;margin-bottom:7px}.grouptitle span:last-child{font-weight:400;text-transform:none;letter-spacing:0;color:#8494aa}
+    .buttons{display:flex;flex-wrap:wrap;gap:7px}.buttons button{padding:9px 11px;font-size:12px}.buttons button[data-kind="face"].active{background:#7151ca}.buttons button[data-kind="body"].active{background:#257f76}
+    .controls{border-top:1px solid #ffffff18;margin-top:15px;padding-top:13px;gap:13px}.control{display:flex;align-items:center;gap:8px;font-size:12px;color:#d8e5f7}.control label{white-space:nowrap}.range{width:128px;accent-color:var(--blue)}.value{font-variant-numeric:tabular-nums;min-width:34px;color:#fff}
+    select{border:1px solid #ffffff30;background:#1a2434;color:white;padding:8px 10px;border-radius:9px;font:inherit;font-size:12px}.hint{font-size:11px;line-height:1.5;color:#a5b4c8;margin-top:12px}.hint strong{color:#e8f1ff}
+    .switch{display:flex;align-items:center;gap:6px;cursor:pointer}.switch input{accent-color:#6594ff}
+    #reveal{display:none;position:fixed;inset:0;z-index:5;cursor:pointer}
+    body.ui-hidden .panel,body.ui-hidden #topbar{display:none}
+    body.ui-hidden #reveal{display:block}
+    .notice{color:#fddf9a}
+    @media(max-width:700px){.panel{bottom:8px;padding:13px;max-height:72vh}.header{flex-direction:column}.controls{gap:10px}.range{width:95px}.buttons button{font-size:11px;padding:8px}.header-actions{align-self:stretch}}
+  </style>
+</head>
+<body>
+  <video id="source" autoplay muted playsinline></video>
+  <canvas id="view" aria-label="Riflesso digitale con filtri"></canvas>
+  <canvas id="decorations" aria-hidden="true"></canvas>
+  <div id="reveal" title="Doppio clic per mostrare il menu" aria-label="Doppio clic per mostrare il menu"></div>
+  <div id="topbar"><div id="state">Preparazione videocamera...</div><div id="stats">FPS: — · Volti: — · Corpo: —</div></div>
+  <section class="panel" id="panel" aria-label="Controlli Smart Mirror">
+    <div class="header">
+      <div class="brand"><div class="mark">◉</div><div><div class="heading">Smart Mirror Studio <span style="color:#8db5ff;font-size:12px">2.0</span></div><div class="subheading">Filtri sul video, viso e corpo · Mac / Windows / Linux</div></div></div>
+      <div class="header-actions"><button id="startCamera" title="Riprova ad accendere la webcam">↻ Webcam</button><button id="full" title="Scorciatoia F">⛶ Schermo intero</button><button id="hide" title="Scorciatoia H o M">◌ Nascondi menu</button></div>
+    </div>
+    <div class="group"><div class="grouptitle"><span>Specchi ed effetti video</span><span>senza AI</span></div><div class="buttons" id="globalFilters"></div></div>
+    <div class="group"><div class="grouptitle"><span>Effetti viso</span><span>seguono il volto tramite AI</span></div><div class="buttons" id="faceFilters"></div></div>
+    <div class="group"><div class="grouptitle"><span>Effetti corpo</span><span>seguono il corpo tramite AI*</span></div><div class="buttons" id="bodyFilters"></div></div>
+    <div class="controls">
+      <div class="control"><label for="strength">Intensità</label><input class="range" id="strength" type="range" min="0" max="100" value="72"><span class="value" id="strengthValue">72%</span></div>
+      <div class="control"><label for="fit">Inquadratura</label><select id="fit"><option value="cover">Riempi TV</option><option value="contain">Mostra tutto</option></select></div>
+      <label class="control switch" for="auto"><input type="checkbox" id="auto"> Cambia filtro ogni</label>
+      <div class="control"><select id="seconds" aria-label="Secondi per cambio filtro"><option value="5">5 s</option><option value="10" selected>10 s</option><option value="15">15 s</option><option value="20">20 s</option></select></div>
+      <button id="prev">← Precedente</button><button id="next">Successivo →</button>
+    </div>
+    <div class="hint"><strong>Scorciatoie:</strong> H o M nasconde/mostra tutti i comandi; doppio clic sul video per riaprirli; ← → cambia filtro; F schermo intero; spazio avvia/ferma il cambio automatico. <span class="notice">*I filtri corpo sono deformazioni locali sperimentali: possono muovere anche parte dello sfondo.</span> I filtri AI richiedono Internet al primo caricamento di questa versione demo.</div>
+  </section>
+<script type="module">
+'use strict';
+
+const el=id=>document.getElementById(id);
+const video=el('source'),canvas=el('view'),overlay=el('decorations'),ctx=overlay.getContext('2d');
+const status=el('state'),stats=el('stats'),strengthSlider=el('strength');
+const CAMERA={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},facingMode:'user'};
+const FILTERS=[
+  {id:0,label:'🪞 Normale',kind:'global'},
+  {id:1,label:'🌊 Onda',kind:'global'},
+  {id:2,label:'🫧 Gonfio',kind:'global'},
+  {id:3,label:'↕ Allungato',kind:'global'},
+  {id:4,label:'↔ Allargato',kind:'global'},
+  {id:5,label:'🌀 Vortice',kind:'global'},
+  {id:6,label:'💧 Onde concentriche',kind:'global'},
+  {id:7,label:'👀 Occhioni',kind:'face'},
+  {id:8,label:'👃 Naso gigante',kind:'face'},
+  {id:9,label:'👄 Bocca gigante',kind:'face'},
+  {id:10,label:'🧠 Testone',kind:'face'},
+  {id:11,label:'🥒 Viso sottile',kind:'face'},
+  {id:12,label:'🐹 Guance gonfie',kind:'face'},
+  {id:13,label:'👽 Alieno',kind:'face'},
+  {id:14,label:'🕶️ Occhiali AR',kind:'face'},
+  {id:15,label:'🐱 Gattino AR',kind:'face'},
+  {id:16,label:'💕 Cuori AR',kind:'face'},
+  {id:17,label:'🤡 Clown',kind:'face'},
+  {id:18,label:'🦒 Corpo alto',kind:'body'},
+  {id:19,label:'💪 Spalle enormi',kind:'body'},
+  {id:20,label:'🍐 Fianchi larghi',kind:'body'},
+  {id:21,label:'🧍 Corpo corto',kind:'body'},
+  {id:22,label:'🪩 Corpo ballerino',kind:'body'},
+];
+const FACE_NUM=2,REGION_PER_FACE=8,POSE_REGION_COUNT=4;
+const faceUniforms=new Float32Array(FACE_NUM*REGION_PER_FACE*4);
+const bodyUniforms=new Float32Array(POSE_REGION_COUNT*4);
+let mode=0,strength=.72,fit=0,activeFilter=0,faceLandmarker=null,poseLandmarker=null;
+let faces=[],poses=[],lastFaceTime=0,lastPoseTime=0,lastSeenFrame=-1;
+let faceEnabled=false,poseEnabled=false,videoReady=false,perfFrames=0,lastPerf=0,fps=0;
+let cameraStream=null,drawRunning=false,lastSwitch=performance.now(),lastTime=0;
+const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+function note(message){status.textContent=message;}
+function setMode(id){
+  const target=FILTERS.find(f=>f.id===id);if(!target)return;
+  mode=id;activeFilter=FILTERS.findIndex(f=>f.id===id);lastSwitch=performance.now();
+  document.querySelectorAll('button[data-filter]').forEach(b=>b.classList.toggle('active',+b.dataset.filter===mode));
+}
+for(const f of FILTERS){
+  const b=document.createElement('button');b.dataset.filter=f.id;b.dataset.kind=f.kind;b.textContent=f.label;b.title=f.kind==='global'?'Filtro sull’intera inquadratura':f.kind==='face'?'Richiede riconoscimento del volto':'Richiede riconoscimento del corpo';
+  b.addEventListener('click',()=>setMode(f.id));el(f.kind==='global'?'globalFilters':f.kind==='face'?'faceFilters':'bodyFilters').appendChild(b);
+}
+setMode(0);
+function nextFilter(dir){setMode(FILTERS[(activeFilter+dir+FILTERS.length)%FILTERS.length].id);}
+function toggleMenu(){document.body.classList.toggle('ui-hidden');}
+function toggleFull(){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else document.documentElement.requestFullscreen().catch(err=>note('Non è possibile attivare lo schermo intero: '+err.message));}
+el('hide').addEventListener('click',toggleMenu);
+el('reveal').addEventListener('dblclick',toggleMenu);
+canvas.addEventListener('dblclick',()=>{if(document.body.classList.contains('ui-hidden'))toggleMenu()});
+el('full').addEventListener('click',toggleFull);
+el('next').addEventListener('click',()=>nextFilter(1));el('prev').addEventListener('click',()=>nextFilter(-1));
+strengthSlider.addEventListener('input',()=>{strength=+strengthSlider.value/100;el('strengthValue').textContent=strengthSlider.value+'%'});
+el('fit').addEventListener('change',()=>{fit=el('fit').value==='contain'?1:0});
+el('startCamera').addEventListener('click',startCamera);
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)&&!['Escape'].includes(e.key))return;
+  const k=e.key.toLowerCase();
+  if(k==='h'||k==='m'){e.preventDefault();toggleMenu()}
+  else if(k==='f'){e.preventDefault();toggleFull()}
+  else if(k==='arrowright'){e.preventDefault();nextFilter(1)}
+  else if(k==='arrowleft'){e.preventDefault();nextFilter(-1)}
+  else if(k===' '){e.preventDefault();el('auto').checked=!el('auto').checked;lastSwitch=performance.now()}
+  else if(k==='escape'&&document.body.classList.contains('ui-hidden')){toggleMenu()}
+});
+
+const vs=`#version 300 es
+  in vec2 aPos;out vec2 vUv;
+  void main(){vUv=(aPos+1.0)*.5;gl_Position=vec4(aPos,0.,1.);}`;
+const fs=`#version 300 es
+  precision highp float;
+  in vec2 vUv;out vec4 outColor;
+  uniform sampler2D uVideo;
+  uniform int uMode,uFit,uFaceCount,uBodyCount;
+  uniform float uStrength,uTime;
+  uniform vec2 uResolution,uVideoSize;
+  uniform vec4 uFaces[16];
+  uniform vec4 uBody[4];
+
+  vec2 warp(vec2 uv,vec4 area,float amplitude){
+    if(area.z<.0002||area.w<.0002)return uv;
+    vec2 d=(uv-area.xy)/area.zw;float r2=dot(d,d);
+    if(r2>=1.)return uv;
+    float falloff=pow(1.-r2,2.);
+    return uv-(uv-area.xy)*amplitude*falloff;
+  }
+  vec2 lateral(vec2 uv,vec4 area,float amount){
+    if(area.z<.0002||area.w<.0002)return uv;
+    vec2 d=(uv-area.xy)/area.zw;float r2=dot(d,d);
+    if(r2>=1.)return uv;
+    return uv-vec2((uv.x-area.x)*amount*pow(1.-r2,2.),0.);
+  }
+  void main(){
+    vec2 uv=vUv;float s=uStrength;float aspect=uResolution.x/uResolution.y;
+    float va=uVideoSize.x/max(1.,uVideoSize.y);
+    if(uMode==1){uv.x+=.13*s*sin(uv.y*15.+uTime*2.6);uv.y+=.035*s*sin(uv.x*23.-uTime*1.7);}
+    if(uMode==2){vec2 d=vec2((uv.x-.5)*aspect,uv.y-.5);float r=dot(d,d);uv-=vec2(d.x/aspect,d.y)*(.8*s*exp(-r/0.18));}
+    if(uMode==3)uv.y=.5+(uv.y-.5)*(1.-.51*s);
+    if(uMode==4)uv.x=.5+(uv.x-.5)*(1.-.51*s);
+    if(uMode==5){vec2 p=vec2((uv.x-.5)*aspect,uv.y-.5);float rr=length(p);float angle=.90*s*exp(-rr*rr*4.);float cs=cos(angle),sn=sin(angle);p=mat2(cs,sn,-sn,cs)*p;uv=vec2(p.x/aspect,p.y)+.5;}
+    if(uMode==6){vec2 p=vec2((uv.x-.5)*aspect,uv.y-.5);float rr=length(p);uv+=.032*s*sin(36.*rr-4.2*uTime)*normalize(p+1e-5)*vec2(1./aspect,1.);}
+    // First transform to the camera texture's own coordinates.
+    uv.x=1.-uv.x; // mirror reflection
+    vec2 scale=vec2(1.);
+    if(uFit==0){if(aspect>va)scale.y=va/aspect;else scale.x=aspect/va;}
+    else{if(aspect>va)scale.x=aspect/va;else scale.y=va/aspect;}
+    uv=(uv-.5)*scale+.5;
+
+    if(uMode>=7&&uMode<=17){
+      for(int i=0;i<2;i++){
+        if(i>=uFaceCount)break;
+        int j=i*8;
+        vec4 face=uFaces[j],eye1=uFaces[j+1],eye2=uFaces[j+2],nose=uFaces[j+3];
+        vec4 mouth=uFaces[j+4],cheek1=uFaces[j+5],cheek2=uFaces[j+6],chin=uFaces[j+7];
+        if(uMode==7){uv=warp(uv,eye1,.87*s);uv=warp(uv,eye2,.87*s);}
+        else if(uMode==8){uv=warp(uv,nose,.96*s);}
+        else if(uMode==9){uv=warp(uv,mouth,.93*s);}
+        else if(uMode==10){uv=warp(uv,face,.65*s);}
+        else if(uMode==11){uv=lateral(uv,face,-.57*s);}
+        else if(uMode==12){uv=warp(uv,cheek1,.80*s);uv=warp(uv,cheek2,.80*s);}
+        else if(uMode==13){uv=warp(uv,eye1,.83*s);uv=warp(uv,eye2,.83*s);uv=warp(uv,mouth,-.36*s);uv=lateral(uv,chin,-.24*s);}
+        else if(uMode==17){uv=warp(uv,nose,.74*s);uv=warp(uv,mouth,.50*s);}
+      }
+    }
+    if(uMode>=18&&uMode<=22&&uBodyCount>0){
+      vec4 shoulders=uBody[0],torso=uBody[1],hips=uBody[2],legs=uBody[3];
+      if(uMode==18){uv=warp(uv,torso,.62*s);uv=warp(uv,legs,.61*s);}
+      if(uMode==19){uv=lateral(uv,shoulders,.89*s);uv=warp(uv,torso,.20*s);}
+      if(uMode==20){uv=lateral(uv,hips,.88*s);}
+      if(uMode==21){uv=warp(uv,torso,-.38*s);uv=warp(uv,legs,-.43*s);}
+      if(uMode==22){vec2 p=(uv-torso.xy)/max(torso.zw,vec2(.001));float f=exp(-dot(p,p)*1.5);uv.x+=.025*s*f*sin(uTime*5.5+uv.y*17.);}
+    }
+    if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.)))){outColor=vec4(.035,.046,.064,1.);return;}
+    outColor=texture(uVideo,uv);
+  }`;
+function compile(type,source){
+  const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);
+  if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(shader));return shader;
+}
+let program=null,tex=null,loc={};
+try{
+  if(!gl)throw Error('WebGL2 non disponibile: usa Chrome o Edge aggiornato.');
+  program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);
+  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+  const buff=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buff);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const ap=gl.getAttribLocation(program,'aPos');gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,2,gl.FLOAT,false,0,0);
+  tex=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  for(const [k,v] of Object.entries({mode:'uMode',fit:'uFit',strength:'uStrength',time:'uTime',resolution:'uResolution',videoSize:'uVideoSize',faces:'uFaces[0]',faceCount:'uFaceCount',body:'uBody[0]',bodyCount:'uBodyCount'}))loc[k]=gl.getUniformLocation(program,v);
+  gl.uniform1i(gl.getUniformLocation(program,'uVideo'),0);
+}catch(err){note('Errore grafica WebGL: '+err.message);console.error(err);}
+
+function at(landmark){return [landmark.x,1-landmark.y];}
+function avg(a,b){return [(a[0]+b[0])/2,(a[1]+b[1])/2];}
+function fromLandmark(landmarks,index){return at(landmarks[index]);}
+function fillArea(array,offset,center,rx,ry){array.set([center[0],center[1],Math.max(.003,rx),Math.max(.003,ry)],offset);}
+function faceAreas(landmarks){
+  const get=i=>fromLandmark(landmarks,i),left=get(234),right=get(454),top=get(10),chin=get(152);
+  const width=Math.max(.08,Math.abs(right[0]-left[0])),height=Math.max(.11,Math.abs(top[1]-chin[1]));
+  const eye1=avg(get(33),get(133)),eye2=avg(get(362),get(263));
+  const nose=get(1),mouth=avg(get(13),get(14));
+  const r=new Float32Array(32);const face=avg(avg(left,right),avg(top,chin));
+  fillArea(r,0,face,width*.61,height*.60);
+  fillArea(r,4,eye1,width*.19,height*.15);
+  fillArea(r,8,eye2,width*.19,height*.15);
+  fillArea(r,12,nose,width*.25,height*.25);
+  fillArea(r,16,mouth,width*.30,height*.18);
+  fillArea(r,20,get(205),width*.25,height*.27);
+  fillArea(r,24,get(425),width*.25,height*.27);
+  fillArea(r,28,chin,width*.37,height*.22);
+  return r;
+}
+function poseAreas(landmarks){
+  const get=i=>fromLandmark(landmarks,i),shoulderL=get(11),shoulderR=get(12),hipL=get(23),hipR=get(24),kneeL=get(25),kneeR=get(26),ankleL=get(27),ankleR=get(28);
+  const shoulder=avg(shoulderL,shoulderR),hip=avg(hipL,hipR),knee=avg(kneeL,kneeR),ankle=avg(ankleL,ankleR);
+  const sw=Math.max(.07,Math.abs(shoulderL[0]-shoulderR[0]));
+  const hw=Math.max(.06,Math.abs(hipL[0]-hipR[0]));
+  const torsoH=Math.max(.08,Math.abs(shoulder[1]-hip[1]));
+  const legH=Math.max(.10,Math.abs(hip[1]-ankle[1]));
+  const r=new Float32Array(16);
+  fillArea(r,0,shoulder,sw*.88,torsoH*.56);
+  fillArea(r,4,avg(shoulder,hip),sw*.80,torsoH*.80);
+  fillArea(r,8,hip,Math.max(hw,sw*.76)*.87,torsoH*.55);
+  fillArea(r,12,avg(knee,ankle),sw*.83,legH*.75);
+  return r;
+}
+// Smooth the high-frequency landmark changes without freezing the UI when a subject leaves.
+function smoothArray(dst,src,alpha){for(let i=0;i<src.length;i++)dst[i]=dst[i]*(1-alpha)+src[i]*alpha;}
+function updateFace(result){
+  const points=(result.faceLandmarks||[]).slice(0,FACE_NUM).sort((a,b)=>a[1].x-b[1].x);
+  const previous=faces;faces=points;faceUniforms.fill(0);
+  for(let i=0;i<points.length;i++){
+    const area=faceAreas(points[i]);const memory=previous[i]?faceAreas(previous[i]):null;
+    if(memory){for(let k=0;k<area.length;k++)area[k]=memory[k]*.25+area[k]*.75;}
+    faceUniforms.set(area,i*32);
+  }
+}
+function updateBody(result){
+  const points=(result.landmarks||[]).slice(0,1);poses=points;bodyUniforms.fill(0);
+  if(points.length)bodyUniforms.set(poseAreas(points[0]));
+}
+
+async function loadVision(){
+  try{
+    note('Webcam pronta. Caricamento filtri AI per viso e corpo…');
+    // Pinned version avoids unplanned breaking changes. Network needed only for demo startup.
+    const pkg='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3';
+    const {FaceLandmarker,PoseLandmarker,FilesetResolver}=await import(pkg+'/vision_bundle.mjs');
+    const fileset=await FilesetResolver.forVisionTasks(pkg+'/wasm');
+    const fmodel='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+    const pmodel='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+    try{
+      faceLandmarker=await FaceLandmarker.createFromOptions(fileset,{baseOptions:{modelAssetPath:fmodel,delegate:'CPU'},runningMode:'VIDEO',numFaces:2});
+      faceEnabled=true;note('Filtri viso attivi. Caricamento riconoscimento corpo…');
+    }catch(e){console.warn('Face tracker error',e);}
+    try{
+      poseLandmarker=await PoseLandmarker.createFromOptions(fileset,{baseOptions:{modelAssetPath:pmodel,delegate:'CPU'},runningMode:'VIDEO',numPoses:1});
+      poseEnabled=true;
+    }catch(e){console.warn('Pose tracker error',e);}
+    note(`Webcam attiva · AI volto: ${faceEnabled?'OK':'non disponibile'} · AI corpo: ${poseEnabled?'OK':'non disponibile'}.`);
+  }catch(err){
+    console.warn('Impossibile caricare MediaPipe',err);
+    note('Webcam attiva, ma AI non caricata. Controlla Internet o la console (F12). I filtri video funzionano comunque.');
+  }
+}
+async function startCamera(){
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw Error('Apri la pagina da http://localhost:8000, non direttamente come file o su HTTP remoto.');
+    if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+    note('Richiesta permesso webcam…');
+    cameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:CAMERA});
+    video.srcObject=cameraStream;await video.play();videoReady=true;
+    note('Webcam attiva '+video.videoWidth+'×'+video.videoHeight+'. Avvio filtri…');
+    if(gl&&!drawRunning){drawRunning=true;requestAnimationFrame(render);}
+  }catch(err){videoReady=false;note('Impossibile aprire la webcam: '+err.message+'. Controlla Privacy e sicurezza → Fotocamera, poi premi Webcam.');console.error(err);}
+}
+function resize(){
+  const dpr=Math.min(devicePixelRatio||1,1.5),w=Math.max(1,Math.round(innerWidth*dpr)),h=Math.max(1,Math.round(innerHeight*dpr));
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h)}
+  if(overlay.width!==Math.round(innerWidth*dpr)||overlay.height!==Math.round(innerHeight*dpr)){overlay.width=Math.round(innerWidth*dpr);overlay.height=Math.round(innerHeight*dpr)}
+}
+function toScreen(point){
+  const aspect=canvas.width/canvas.height,va=video.videoWidth/video.videoHeight;
+  let sx=1,sy=1;
+  if(fit===0){if(aspect>va)sy=va/aspect;else sx=aspect/va;}
+  else{if(aspect>va)sx=aspect/va;else sy=va/aspect;}
+  return {x:(.5+(.5-point.x)/sx)*overlay.width,y:(.5+(point.y-.5)/sy)*overlay.height};
+}
+function oval(c,rx,ry,fill){ctx.beginPath();ctx.ellipse(c.x,c.y,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill()}
+function line(a,b,width,color){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineWidth=width;ctx.strokeStyle=color;ctx.lineCap='round';ctx.stroke()}
+function drawAccessories(time){
+  ctx.clearRect(0,0,overlay.width,overlay.height);
+  if(mode<14||mode>17||!faces.length)return;
+  const w=overlay.width;const scale=strength;
+  for(const f of faces){
+    const p=i=>toScreen(f[i]),e1=p(33),e2=p(263),faceTop=p(10),chin=p(152),nose=p(1),mouth=p(13);
+    const faceWidth=Math.max(25,Math.hypot(e1.x-e2.x,e1.y-e2.y)*2.0),faceHeight=Math.abs(chin.y-faceTop.y);
+    const eyeY=(e1.y+e2.y)/2;
+    if(mode===14){
+      const y=eyeY,dx=faceWidth*.23,r=faceWidth*.14;
+      ctx.fillStyle='#121821';ctx.strokeStyle='#101b29';ctx.lineWidth=Math.max(3,faceWidth*.035);
+      for(const center of [{x:nose.x-dx,y},{x:nose.x+dx,y}]){ctx.beginPath();ctx.ellipse(center.x,center.y,r,r*.64,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
+      line({x:nose.x-r*.54,y},{x:nose.x+r*.54,y},Math.max(3,faceWidth*.04),'#101b29');
+      line({x:nose.x-dx-r,y:y-5},{x:nose.x-faceWidth*.53,y:y-faceWidth*.055},Math.max(3,faceWidth*.04),'#101b29');
+      line({x:nose.x+dx+r,y:y-5},{x:nose.x+faceWidth*.53,y:y-faceWidth*.055},Math.max(3,faceWidth*.04),'#101b29');
+    }
+    if(mode===15){
+      const ears=[{x:nose.x-faceWidth*.37,y:faceTop.y+faceHeight*.08},{x:nose.x+faceWidth*.37,y:faceTop.y+faceHeight*.08}];
+      for(const ear of ears){ctx.fillStyle='#f5b4c3';ctx.strokeStyle='#f7e6ec';ctx.lineWidth=faceWidth*.04;ctx.beginPath();ctx.moveTo(ear.x-faceWidth*.14,ear.y+faceHeight*.12);ctx.lineTo(ear.x,ear.y-faceHeight*.2);ctx.lineTo(ear.x+faceWidth*.14,ear.y+faceHeight*.12);ctx.closePath();ctx.fill();ctx.stroke()}
+      oval({x:nose.x,y:nose.y+faceHeight*.07},faceWidth*.055,faceHeight*.04,'#f2a4bd');
+      for(const sign of [-1,1])for(let i=-1;i<=1;i++){const src={x:nose.x+sign*faceWidth*.07,y:nose.y+faceHeight*(.11+i*.026)};const dest={x:nose.x+sign*faceWidth*.44,y:nose.y+faceHeight*(.08+i*.08)};line(src,dest,Math.max(1,faceWidth*.013),'#f6e9ea')}
+    }
+    if(mode===16){
+      const hearts=[[-.42,-.18,.090],[.40,-.27,.072],[-.24,-.41,.052],[.28,-.51,.060]];
+      ctx.font=`${Math.round(faceWidth*.14)}px system-ui`;ctx.textAlign='center';
+      for(const [x,y,k] of hearts){ctx.globalAlpha=.65+.30*Math.sin(time*1.4+x*15);ctx.font=`${Math.round(faceWidth*k*2)}px system-ui`;ctx.fillText('💗',nose.x+faceWidth*x,faceTop.y+faceHeight*y+Math.sin(time*2+x*7)*faceHeight*.05)}ctx.globalAlpha=1;
+      oval({x:nose.x-faceWidth*.26,y:nose.y+faceHeight*.14},faceWidth*.13,faceHeight*.06,'#ff84a63d');
+      oval({x:nose.x+faceWidth*.26,y:nose.y+faceHeight*.14},faceWidth*.13,faceHeight*.06,'#ff84a63d');
+    }
+    if(mode===17){
+      oval({x:nose.x,y:nose.y+faceHeight*.055},faceWidth*.115,faceHeight*.075,'#ed2c3a');
+      oval({x:nose.x-faceWidth*.29,y:mouth.y-faceHeight*.05},faceWidth*.12,faceHeight*.095,'#ff66855c');
+      oval({x:nose.x+faceWidth*.29,y:mouth.y-faceHeight*.05},faceWidth*.12,faceHeight*.095,'#ff66855c');
+      ctx.beginPath();ctx.arc(mouth.x,mouth.y,faceWidth*.18,0,Math.PI);ctx.strokeStyle='#dd394e';ctx.lineWidth=Math.max(3,faceWidth*.027);ctx.stroke();
+    }
+  }
+}
+function maybeDetect(time){
+  if(!videoReady||video.readyState<2||(!faceEnabled&&!poseEnabled))return;
+  // Lower inference cadence preserves UI responsiveness on weaker laptops.
+  if(faceLandmarker&&time-lastFaceTime>=90){
+    try{updateFace(faceLandmarker.detectForVideo(video,time));lastFaceTime=time;}catch(err){console.warn('Riconoscimento volto',err);faceEnabled=false;faceLandmarker=null;}
+  }
+  if(poseLandmarker&&time-lastPoseTime>=150){
+    try{updateBody(poseLandmarker.detectForVideo(video,time));lastPoseTime=time;}catch(err){console.warn('Riconoscimento corpo',err);poseEnabled=false;poseLandmarker=null;}
+  }
+}
+function render(time){
+  if(!videoReady||!gl||!program){drawRunning=false;return;}
+  try{
+    resize();maybeDetect(time);
+    if(el('auto').checked&&time-lastSwitch>Number(el('seconds').value)*1000)nextFilter(1);
+    gl.useProgram(program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);
+    gl.uniform1i(loc.mode,mode);gl.uniform1i(loc.fit,fit);gl.uniform1f(loc.strength,strength);gl.uniform1f(loc.time,time*.001);
+    gl.uniform2f(loc.resolution,canvas.width,canvas.height);gl.uniform2f(loc.videoSize,video.videoWidth,video.videoHeight);
+    gl.uniform1i(loc.faceCount,faceEnabled?faces.length:0);gl.uniform4fv(loc.faces,faceUniforms);
+    gl.uniform1i(loc.bodyCount,poseEnabled?poses.length:0);gl.uniform4fv(loc.body,bodyUniforms);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    drawAccessories(time*.001);
+    perfFrames++;
+    if(time-lastPerf>1000){fps=Math.round(perfFrames*1000/(time-lastPerf));perfFrames=0;lastPerf=time;
+      stats.textContent=`FPS: ${fps} · Volti: ${faceEnabled?faces.length:'AI off'} · Corpo: ${poseEnabled?(poses.length?'rilevato':'assente'):'AI off'} · ${video.videoWidth}×${video.videoHeight}`;
+      const kind=FILTERS[activeFilter].kind;
+      if(kind==='face'&&!faceEnabled)note('Filtro viso selezionato: AI viso non disponibile. Controlla connessione Internet e console.');
+      else if(kind==='face'&&!faces.length)note('Cerca di inquadrare il viso per attivare questo filtro.');
+      else if(kind==='body'&&!poseEnabled)note('Filtro corpo selezionato: AI corpo non disponibile. Controlla connessione Internet e console.');
+      else if(kind==='body'&&!poses.length)note('Allontanati leggermente: serve vedere una buona parte del corpo.');
+      else if(faceEnabled||poseEnabled)note('Smart Mirror attivo · '+FILTERS[activeFilter].label+' · comandi H / M.');
+    }
+  }catch(err){console.error(err);note('Errore rendering: '+err.message);drawRunning=false;return;}
+  requestAnimationFrame(render);
+}
+
+await startCamera();
+// Load ML independently; video-only filters remain operational if the CDN is unreachable.
+if(videoReady)loadVision();
+</script>
+</body>
+</html>
