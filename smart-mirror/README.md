@@ -15,11 +15,23 @@ Specchio digitale: la webcam riprende chi c'è davanti e lo schermo mostra il ri
 |---|---|
 | H o M | nasconde / mostra i comandi (doppio clic sullo specchio li riapre) |
 | ← → | filtro precedente / successivo |
+| R | ruota l'immagine di 90° in senso orario (0° → 90° → 180° → 270°) |
 | F | schermo intero |
 | Spazio | avvia / ferma il cambio automatico del filtro |
 | D | dati tecnici per le regolazioni (fps, volti, tempi del riconoscimento) |
 
-Le impostazioni (filtro, intensità, videocamera, cambio automatico, comandi nascosti) restano memorizzate sul computer dello specchio.
+Le impostazioni (filtro, intensità, videocamera, orientamento, cambio automatico, comandi nascosti) restano memorizzate sul computer dello specchio.
+
+## Orientamento dello schermo
+
+Nel pannello, alla voce **Orientamento schermo**:
+
+- **Rotazione** 0°, 90° (senso orario), 180°, 270° (senso antiorario). Ruota solo l'immagine dello specchio e le scritte sopra, non il pannello. Serve quando la TV è montata in verticale ma il computer la vede ancora orizzontale, anche su Mac, dove spesso non si può ruotare un monitor esterno.
+- **Immagine**: *Riempi* occupa tutto lo schermo e taglia i bordi che avanzano; *Contieni* mostra l'immagine intera, con bande scure dove non arriva.
+- **Ripristina** torna a 0°.
+- **Scritte sullo specchio**: se disattivate, sullo schermo resta solo l'immagine della webcam.
+
+Per una TV montata in verticale: si sceglie la rotazione con cui il volto appare dritto. Se la TV è girata in senso antiorario serve 90°, se è girata in senso orario serve 270°. La rotazione cambia solo il disegno finale: il riconoscimento del volto lavora sempre sull'immagine originale della webcam.
 
 ## Prova senza webcam
 

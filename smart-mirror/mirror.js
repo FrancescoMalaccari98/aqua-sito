@@ -37,8 +37,13 @@ const FILTERS = [
 
 /* ---------- Settings, remembered on this device ---------- */
 const STORE_KEY = 'aqua-mirror';
-const settings = { filter: 1, strength: 75, fit: 'cover', auto: false, seconds: 10, camera: '', uiHidden: false };
+const DEFAULT_ROTATION = 0;
+const settings = {
+  filter: 1, strength: 75, fit: 'cover', rotation: DEFAULT_ROTATION, captions: true,
+  auto: false, seconds: 10, camera: '', uiHidden: false,
+};
 try { Object.assign(settings, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) { /* private mode: defaults */ }
+settings.rotation = [0, 1, 2, 3].includes(+settings.rotation) ? +settings.rotation : DEFAULT_ROTATION;
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) { /* ignore */ } };
 
 // Developer test mode (?prova): a generated grid replaces the webcam and a fake face sits in the middle.
@@ -120,6 +125,29 @@ strengthEl.addEventListener('input', () => {
   save();
 });
 fitEl.addEventListener('change', () => { settings.fit = fitEl.value; save(); });
+
+// Screen orientation: rotates only the mirror image (and its captions), never the panel.
+// Useful when the TV is mounted vertically but the computer still sees it as horizontal.
+const rotationEl = $('rotation');
+function setRotation(r) {
+  settings.rotation = ((r % 4) + 4) % 4;
+  rotationEl.value = String(settings.rotation);
+  document.body.dataset.rotation = settings.rotation;
+  save();
+}
+rotationEl.addEventListener('change', () => setRotation(+rotationEl.value));
+$('resetRotation').addEventListener('click', () => setRotation(DEFAULT_ROTATION));
+setRotation(settings.rotation);
+
+// Captions on the mirror (filter name, "come closer"): can be switched off for an image-only screen
+const captionsEl = $('captions');
+captionsEl.checked = settings.captions;
+document.body.classList.toggle('no-captions', !settings.captions);
+captionsEl.addEventListener('change', () => {
+  settings.captions = captionsEl.checked;
+  document.body.classList.toggle('no-captions', !settings.captions);
+  save();
+});
 autoEl.addEventListener('change', () => { settings.auto = autoEl.checked; lastSwitch = performance.now(); save(); });
 secondsEl.addEventListener('change', () => { settings.seconds = +secondsEl.value; save(); });
 cameraEl.addEventListener('change', () => { settings.camera = cameraEl.value; save(); startCamera(); });
@@ -152,6 +180,7 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'arrowleft') stepFilter(-1);
   else if (k === ' ') { autoEl.checked = !autoEl.checked; autoEl.dispatchEvent(new Event('change')); }
   else if (k === 'd') { showDebug = !showDebug; debugCanvas.hidden = !showDebug; }
+  else if (k === 'r') setRotation(settings.rotation + 1);
   else return;
   e.preventDefault();
 });
@@ -194,6 +223,7 @@ uniform sampler2D uVideo;
 uniform vec2 uResolution;   // canvas size (px)
 uniform vec2 uVideoSize;    // camera frame size (px)
 uniform int uFit;           // 0 = fill the screen (crop), 1 = show the whole frame
+uniform int uRotation;      // display rotation in quarter turns clockwise: 0, 1 = 90°, 2 = 180°, 3 = 270°
 uniform int uMode;          // filter id
 uniform float uAmount;      // 0..1: intensity x fade
 uniform int uFaceCount;
@@ -307,9 +337,19 @@ vec2 warpFace(vec2 p, int i) {
 }
 
 void main() {
-  vec2 uv = vUv;
-  float aspect = uResolution.x / uResolution.y;
+  // 1. Display rotation (final render only; face tracking keeps the camera's own coordinates).
+  //    Find where this screen pixel lies in the upright mirror image. For 90° and 270° that
+  //    upright image is the screen with width and height swapped, so proportions stay correct.
+  vec2 s = (vUv - 0.5) * uResolution;
+  vec2 res = uResolution;
+  vec2 v = s;
+  if (uRotation == 1) { v = vec2(-s.y, s.x); res = uResolution.yx; }       // 90° clockwise
+  else if (uRotation == 2) { v = -s; }                                      // 180°
+  else if (uRotation == 3) { v = vec2(s.y, -s.x); res = uResolution.yx; }  // 270° (90° anticlockwise)
+  vec2 uv = v / res + 0.5;
+  float aspect = res.x / res.y;
   float va = uVideoSize.x / max(1.0, uVideoSize.y);
+  // 2. Mirror, then fit the camera frame (Riempi = crop, Contieni = whole frame with bands)
   uv.x = 1.0 - uv.x;                        // mirror reflection
   vec2 scale = vec2(1.0);
   if (uFit == 0) { if (aspect > va) scale.y = va / aspect; else scale.x = aspect / va; }
@@ -362,7 +402,7 @@ function initGL() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  for (const name of ['uVideo', 'uResolution', 'uVideoSize', 'uFit', 'uMode', 'uAmount', 'uFaceCount', 'uFace']) {
+  for (const name of ['uVideo', 'uResolution', 'uVideoSize', 'uFit', 'uRotation', 'uMode', 'uAmount', 'uFaceCount', 'uFace']) {
     loc[name] = gl.getUniformLocation(program, name);
   }
   gl.uniform1i(loc.uVideo, 0);
@@ -635,6 +675,7 @@ function render(now) {
   gl.uniform2f(loc.uResolution, canvas.width, canvas.height);
   gl.uniform2f(loc.uVideoSize, video.videoWidth, video.videoHeight);
   gl.uniform1i(loc.uFit, settings.fit === 'contain' ? 1 : 0);
+  gl.uniform1i(loc.uRotation, settings.rotation);
   gl.uniform1i(loc.uMode, mode);
   const eased = fade * fade * (3 - 2 * fade);
   gl.uniform1f(loc.uAmount, (settings.strength / 100) * eased);
@@ -653,13 +694,23 @@ function drawDebug(faceCount) {
   const W = debugCanvas.width;
   const H = debugCanvas.height;
   g.clearRect(0, 0, W, H);
-  const aspect = W / H;
+  const rot = settings.rotation;
+  const VW = rot % 2 ? H : W;               // size of the upright mirror image
+  const VH = rot % 2 ? W : H;
+  const aspect = VW / VH;
   const va = video.videoWidth / video.videoHeight;
   let sx = 1, sy = 1;
   if (settings.fit !== 'contain') { if (aspect > va) sy = va / aspect; else sx = aspect / va; }
   else { if (aspect > va) sx = aspect / va; else sy = va / aspect; }
-  // square texture space -> screen pixels (inverse of the shader mapping)
-  const toScreen = (x, y) => [(1 - ((x / va - 0.5) / sx + 0.5)) * W, (1 - ((y - 0.5) / sy + 0.5)) * H];
+  // square texture space -> upright image -> rotated screen pixels (inverse of the shader mapping)
+  const toScreen = (x, y) => {
+    let cx = (1 - ((x / va - 0.5) / sx + 0.5) - 0.5) * VW;
+    let cy = ((y - 0.5) / sy) * VH;
+    if (rot === 1) [cx, cy] = [cy, -cx];
+    else if (rot === 2) [cx, cy] = [-cx, -cy];
+    else if (rot === 3) [cx, cy] = [-cy, cx];
+    return [W / 2 + cx, H / 2 - cy];
+  };
   for (let i = 0; i < faceCount; i++) {
     const v = tracks[i].value;
     g.strokeStyle = `rgba(184,154,94,${tracks[i].weight})`;

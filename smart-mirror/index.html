@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#0E1514">
   <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=27">
-  <link rel="stylesheet" href="mirror.css?v=2">
+  <link rel="stylesheet" href="mirror.css?v=4">
 </head>
 <body>
   <!-- Camera frames are drawn (mirrored and warped) on the canvas; the <video> stays hidden -->
@@ -17,10 +17,14 @@
   <canvas id="view" aria-label="Riflesso dello specchio con il filtro attivo"></canvas>
   <canvas id="debug" aria-hidden="true"></canvas>
 
-  <!-- Messages shown over the mirror -->
+  <!-- Status messages for the staff: never rotated, hidden with the panel -->
   <p id="status" class="status" role="status" aria-live="polite">Preparazione della videocamera…</p>
-  <p id="toast" class="toast" aria-hidden="true"></p>
-  <p id="prompt" class="prompt" aria-hidden="true">Avvicinati <em>allo specchio</em></p>
+
+  <!-- Captions for people in front of the mirror: rotated together with the image -->
+  <div class="stage" aria-hidden="true">
+    <p id="toast" class="toast"></p>
+    <p id="prompt" class="prompt">Avvicinati <em>allo specchio</em></p>
+  </div>
 
   <!-- Control panel (H or M hides it; double click on the mirror brings it back) -->
   <section class="panel" id="panel" aria-label="Comandi dello specchio">
@@ -47,13 +51,6 @@
         <output id="strengthValue" for="strength">75%</output>
       </label>
       <label class="control">
-        <span>Inquadratura</span>
-        <select id="fit">
-          <option value="cover">Riempi lo schermo</option>
-          <option value="contain">Mostra tutto</option>
-        </select>
-      </label>
-      <label class="control">
         <span>Videocamera</span>
         <select id="camera"><option value="">Predefinita</option></select>
       </label>
@@ -73,9 +70,35 @@
       </div>
     </div>
 
+    <!-- Screen orientation: rotates the mirror image only (the panel stays readable) -->
+    <div class="controls controls--orientation" role="group" aria-labelledby="orientationTitle">
+      <p class="controls__title" id="orientationTitle">Orientamento schermo</p>
+      <label class="control">
+        <span>Rotazione</span>
+        <select id="rotation">
+          <option value="0">0° · normale</option>
+          <option value="1">90° · senso orario</option>
+          <option value="2">180° · capovolto</option>
+          <option value="3">270° · senso antiorario</option>
+        </select>
+      </label>
+      <label class="control">
+        <span>Immagine</span>
+        <select id="fit">
+          <option value="cover">Riempi · a tutto schermo</option>
+          <option value="contain">Contieni · immagine intera</option>
+        </select>
+      </label>
+      <button type="button" id="resetRotation" title="Torna a 0°">Ripristina</button>
+      <label class="control control--check">
+        <input type="checkbox" id="captions">
+        <span>Scritte sullo specchio</span>
+      </label>
+    </div>
+
     <p class="hint">
       <strong>Scorciatoie:</strong> H o M nasconde i comandi · doppio clic sullo specchio li riapre ·
-      ← → cambia filtro · F schermo intero · spazio avvia o ferma il cambio automatico.
+      ← → cambia filtro · R ruota lo schermo di 90° · F schermo intero · spazio avvia o ferma il cambio automatico.
       <span class="hint__privacy">Le immagini restano su questo dispositivo: niente viene registrato né inviato.</span>
     </p>
   </section>
@@ -87,6 +110,6 @@
         'Lo specchio non funziona aperto come file: avvia il server e apri http://localhost:8080/smart-mirror/ (oppure l\'indirizzo online https://…/aqua-sito/smart-mirror/).';
     }
   </script>
-  <script type="module" src="mirror.js?v=4"></script>
+  <script type="module" src="mirror.js?v=5"></script>
 </body>
 </html>

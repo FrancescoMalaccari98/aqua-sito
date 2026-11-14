@@ -40,15 +40,27 @@ body.is-idle, body.is-idle * { cursor: none !important; }
 .status.is-quiet { opacity: 0; pointer-events: none; }
 .status a { color: var(--brass); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 
+/* The stage covers the upright mirror image: with 90°/270° it swaps width and height and turns
+   with the video, so captions read correctly on a TV mounted vertically. */
+.stage {
+  position: fixed; left: 50%; top: 50%; z-index: 10; width: 100vw; height: 100vh;
+  transform: translate(-50%, -50%); pointer-events: none; container-type: size;
+}
+body[data-rotation="1"] .stage { width: 100vh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
+body[data-rotation="2"] .stage { transform: translate(-50%, -50%) rotate(180deg); }
+body[data-rotation="3"] .stage { width: 100vh; height: 100vw; transform: translate(-50%, -50%) rotate(270deg); }
+body.no-captions .stage { display: none; }
+
 .toast, .prompt {
-  position: fixed; left: 50%; z-index: 10; margin: 0; transform: translate(-50%, 12px);
+  position: absolute; left: 50%; margin: 0; transform: translate(-50%, 12px);
   font-family: var(--serif); font-weight: 300; color: var(--ivory); text-align: center; white-space: nowrap;
   text-shadow: 0 2px 24px rgba(0, 0, 0, .55); opacity: 0; pointer-events: none;
   transition: opacity .7s var(--ease), transform .7s var(--ease);
 }
-.toast { bottom: clamp(28px, 7vh, 72px); font-size: clamp(30px, 4.6vw, 64px); }
+/* sizes follow the upright image (container units), not the physical screen */
+.toast { bottom: clamp(28px, 7cqh, 120px); font-size: clamp(28px, 6cqw, 110px); }
 .toast em, .prompt em { color: var(--brass); }
-.prompt { top: 50%; font-size: clamp(34px, 5.6vw, 80px); }
+.prompt { top: 50%; font-size: clamp(32px, 7.5cqw, 140px); }
 .toast.is-on, .prompt.is-on { opacity: 1; transform: translate(-50%, 0); }
 /* while the panel is open the filter name is already visible in it */
 body:not(.ui-hidden) .toast { display: none; }
@@ -93,6 +105,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .control input[type="range"] { width: 130px; accent-color: var(--brass); }
 .control input[type="checkbox"] { accent-color: var(--brass); width: 16px; height: 16px; }
 .control--nav { gap: 6px; }
+.controls__title { flex-basis: 100%; margin: 0; font-size: 10px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--ivory); }
 .control--nav button { padding: 8px 14px; font-size: 14px; letter-spacing: 0; }
 select { border: 1px solid var(--line); background: var(--ink-2); padding: 7px 10px; font-size: 12px; max-width: 220px; }
 
