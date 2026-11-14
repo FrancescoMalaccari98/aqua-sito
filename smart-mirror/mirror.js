@@ -544,7 +544,16 @@ function startTestPattern() {
   g.strokeStyle = '#ede6d8'; g.lineWidth = 4;
   g.beginPath(); g.ellipse(640, 380, 190, 240, 0, 0, Math.PI * 2); g.stroke();
   video.srcObject = c.captureStream(30);
-  video.play().then(() => { videoReady = true; note('Modalità di prova: griglia e volto finto, senza videocamera.'); });
+  video.play().then(() => {
+    videoReady = true;
+    // stays on screen with a way out, so nobody gets stuck on the grid
+    statusEl.textContent = 'Modalità di prova: griglia e volto finto, senza videocamera. ';
+    const link = document.createElement('a');
+    link.href = location.pathname;
+    link.textContent = 'Usa la webcam →';
+    statusEl.append(link);
+    statusEl.classList.remove('is-quiet');
+  });
   const va = 1280 / 720;
   const p = (x, y) => [x / 1280 * va, 1 - y / 720];
   testFace = [...p(640, 380), 1, 0, 190 / 1280 * va, 240 / 720, ...p(560, 300), ...p(720, 300), ...p(640, 390), ...p(640, 470),

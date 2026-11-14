@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#0E1514">
   <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=27">
-  <link rel="stylesheet" href="mirror.css?v=1">
+  <link rel="stylesheet" href="mirror.css?v=2">
 </head>
 <body>
   <!-- Camera frames are drawn (mirrored and warped) on the canvas; the <video> stays hidden -->
@@ -80,6 +80,13 @@
     </p>
   </section>
 
-  <script type="module" src="mirror.js?v=2"></script>
+  <script>
+    // Opened as a file (file://) the browser blocks both the webcam and the mirror code: explain what to do.
+    if (location.protocol === 'file:') {
+      document.getElementById('status').textContent =
+        'Lo specchio non funziona aperto come file: avvia il server e apri http://localhost:8080/smart-mirror/ (oppure l\'indirizzo online https://…/aqua-sito/smart-mirror/).';
+    }
+  </script>
+  <script type="module" src="mirror.js?v=3"></script>
 </body>
 </html>

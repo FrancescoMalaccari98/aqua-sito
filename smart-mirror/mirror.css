@@ -38,6 +38,7 @@ body.is-idle, body.is-idle * { cursor: none !important; }
   transition: opacity .6s var(--ease);
 }
 .status.is-quiet { opacity: 0; pointer-events: none; }
+.status a { color: var(--brass); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 
 .toast, .prompt {
   position: fixed; left: 50%; z-index: 10; margin: 0; transform: translate(-50%, 12px);
