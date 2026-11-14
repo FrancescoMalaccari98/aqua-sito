@@ -1,0 +1,111 @@
+/* ==========================================================================
+   Aqua — smart mirror. Same palette and fonts as the website.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+  --ink: #0E1514;
+  --ink-2: #131C1A;
+  --brass: #B89A5E;
+  --ivory: #EDE6D8;
+  --stone: #A39E92;
+  --mute: #8E8A80;
+  --line: rgba(237, 230, 216, .14);
+  --line-brass: rgba(184, 154, 94, .45);
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Manrope", system-ui, -apple-system, sans-serif;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ink); color: var(--ivory); font-family: var(--sans); font-weight: 300; }
+button, select, input { font: inherit; color: inherit; }
+
+/* the mirror fills the screen; the hidden video is only the camera source */
+video { display: none; }
+#view, #debug { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#debug { pointer-events: none; }
+#debug[hidden] { display: none; }
+
+/* hide the pointer while the mirror is left alone (kiosk use) */
+body.is-idle, body.is-idle * { cursor: none !important; }
+
+/* ---------- Messages over the mirror ---------- */
+.status {
+  position: fixed; top: 16px; left: 16px; z-index: 10; margin: 0; max-width: min(560px, calc(100% - 32px));
+  padding: 9px 14px; border: 1px solid var(--line); background: rgba(14, 21, 20, .78);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  font-size: 12px; letter-spacing: .04em; line-height: 1.45; color: var(--stone);
+  transition: opacity .6s var(--ease);
+}
+.status.is-quiet { opacity: 0; pointer-events: none; }
+
+.toast, .prompt {
+  position: fixed; left: 50%; z-index: 10; margin: 0; transform: translate(-50%, 12px);
+  font-family: var(--serif); font-weight: 300; color: var(--ivory); text-align: center; white-space: nowrap;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, .55); opacity: 0; pointer-events: none;
+  transition: opacity .7s var(--ease), transform .7s var(--ease);
+}
+.toast { bottom: clamp(28px, 7vh, 72px); font-size: clamp(30px, 4.6vw, 64px); }
+.toast em, .prompt em { color: var(--brass); }
+.prompt { top: 50%; font-size: clamp(34px, 5.6vw, 80px); }
+.toast.is-on, .prompt.is-on { opacity: 1; transform: translate(-50%, 0); }
+/* while the panel is open the filter name is already visible in it */
+body:not(.ui-hidden) .toast { display: none; }
+
+/* ---------- Control panel ---------- */
+.panel {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 20;
+  width: min(920px, calc(100vw - 24px)); max-height: min(78vh, 760px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px 20px 16px; border: 1px solid var(--line);
+  background: rgba(14, 21, 20, .9); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .6); scrollbar-width: thin;
+}
+body.ui-hidden .panel, body.ui-hidden .status { display: none; }
+
+.panel__head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand__q { width: 34px; height: auto; aspect-ratio: 488 / 476; fill: var(--brass); }
+.brand__eyebrow { margin: 0 0 2px; font-size: 10px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--brass); }
+.brand__title { margin: 0; font-family: var(--serif); font-weight: 300; font-size: 30px; line-height: 1; }
+.brand__title em { color: var(--brass); }
+.panel__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+button {
+  cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ivory);
+  padding: 9px 14px; font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
+  transition: border-color .3s var(--ease), background-color .3s var(--ease), color .3s var(--ease);
+}
+button:hover { border-color: var(--line-brass); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+/* filter pills, like the categories of the drinks menu */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.filters button { border-radius: 999px; padding: 9px 15px; letter-spacing: .12em; color: var(--stone); }
+.filters button:hover { color: var(--ivory); }
+.filters button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--ink); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.control { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--stone); }
+.control > span:first-child { font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
+.control--check > span { font-size: 12px !important; font-weight: 300 !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--stone) !important; }
+.control output { min-width: 38px; color: var(--ivory); font-variant-numeric: tabular-nums; }
+.control input[type="range"] { width: 130px; accent-color: var(--brass); }
+.control input[type="checkbox"] { accent-color: var(--brass); width: 16px; height: 16px; }
+.control--nav { gap: 6px; }
+.control--nav button { padding: 8px 14px; font-size: 14px; letter-spacing: 0; }
+select { border: 1px solid var(--line); background: var(--ink-2); padding: 7px 10px; font-size: 12px; max-width: 220px; }
+
+.hint { margin: 14px 0 0; font-size: 11px; line-height: 1.6; color: var(--mute); }
+.hint strong { font-weight: 500; color: var(--stone); }
+.hint__privacy { display: block; margin-top: 4px; color: var(--stone); }
+
+@media (max-width: 700px) {
+  .panel { bottom: 8px; padding: 14px; max-height: 74vh; }
+  .brand__title { font-size: 26px; }
+  .filters button { padding: 8px 12px; font-size: 10px; }
+  .control input[type="range"] { width: 100px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .prompt, .status { transition: none; }
+}
