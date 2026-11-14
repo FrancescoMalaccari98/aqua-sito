@@ -501,7 +501,16 @@ async function startCamera() {
     const video_ = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
     if (settings.camera) video_.deviceId = { exact: settings.camera };
     else video_.facingMode = 'user';
-    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: video_ });
+    // If the camera never answers (macOS has not allowed this browser, or another app is using it),
+    // getUserMedia stays pending forever: after a few seconds explain what to check, but keep waiting.
+    const slow = setTimeout(() => note(
+      'La videocamera non risponde. Su Mac: Impostazioni di Sistema › Privacy e sicurezza › Videocamera, attiva il browser che stai usando; '
+      + 'poi chiudi le app che la usano (FaceTime, Zoom, Teams…) e ricarica la pagina.', { sticky: true }), 8000);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: video_ });
+    } finally {
+      clearTimeout(slow);
+    }
     // if the camera is unplugged or stops, try again every few seconds
     stream.getVideoTracks()[0].addEventListener('ended', () => {
       videoReady = false;
