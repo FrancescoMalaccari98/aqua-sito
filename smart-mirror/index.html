@@ -9,16 +9,33 @@
   <meta name="theme-color" content="#0E1514">
   <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=27">
-  <link rel="stylesheet" href="mirror.css?v=4">
+  <link rel="stylesheet" href="mirror.css?v=6">
 </head>
 <body>
   <!-- Camera frames are drawn (mirrored and warped) on the canvas; the <video> stays hidden -->
   <video id="source" autoplay muted playsinline></video>
   <canvas id="view" aria-label="Riflesso dello specchio con il filtro attivo"></canvas>
-  <canvas id="debug" aria-hidden="true"></canvas>
+  <canvas id="debug" aria-hidden="true" hidden></canvas>
 
   <!-- Status messages for the staff: never rotated, hidden with the panel -->
   <p id="status" class="status" role="status" aria-live="polite">Preparazione della videocamera…</p>
+
+  <!-- Test mode reminder (processing other than "Completa"): stays visible even with the panel hidden -->
+  <p id="testBadge" class="test-badge" hidden></p>
+
+  <!-- Diagnostics for the staff (key D): measurements only, never rotated -->
+  <aside id="diag" class="diag" hidden aria-label="Dati tecnici dello specchio">
+    <header class="diag__head">
+      <p class="diag__title">Dati <em>tecnici</em></p>
+      <div class="diag__actions">
+        <button type="button" id="diagReset" title="Riparte da zero con le misure">Azzera</button>
+        <button type="button" id="diagCopy" title="Copia tutti i valori negli appunti">Copia report</button>
+        <button type="button" id="diagLog" title="Un campione al secondo da quando il pannello è aperto">Scarica log</button>
+        <button type="button" id="diagClose" aria-label="Chiudi i dati tecnici" title="Scorciatoia: D">×</button>
+      </div>
+    </header>
+    <div id="diagBody" class="diag__body"></div>
+  </aside>
 
   <!-- Captions for people in front of the mirror: rotated together with the image -->
   <div class="stage" aria-hidden="true">
@@ -62,6 +79,7 @@
       <label class="control">
         <span>Videocamera</span>
         <select id="camera"><option value="">Predefinita</option></select>
+        <button type="button" id="cameraRefresh" class="control__icon" aria-label="Aggiorna l'elenco delle videocamere" title="Aggiorna l'elenco (scorciatoia per cambiare: C)">↻</button>
       </label>
       <label class="control control--check">
         <input type="checkbox" id="auto">
@@ -105,9 +123,29 @@
       </label>
     </div>
 
+    <!-- Tests: compare the mirror with and without effects, and read the measurements -->
+    <div class="controls controls--diag" role="group" aria-labelledby="diagTitle">
+      <p class="controls__title" id="diagTitle">Test e diagnostica</p>
+      <label class="control">
+        <span>Elaborazione</span>
+        <select id="processing" title="Scorciatoia: E"></select>
+      </label>
+      <button type="button" id="diagToggle" title="Scorciatoia: D">Dati tecnici</button>
+      <!-- Shortcuts to the other ways of opening the mirror (same page, different address) -->
+      <nav class="pages" aria-label="Pagine dello specchio">
+        <span class="pages__label">Apri</span>
+        <a href="./" data-page="specchio" title="Indirizzo: …/smart-mirror/">Specchio</a>
+        <a href="./?diagnostica" data-page="diagnostica" title="Indirizzo: ?diagnostica · specchio con i dati tecnici già aperti">Diagnostica</a>
+        <a href="./?diagnostica&amp;riconoscimento=sincrono" data-page="diagnostica-sincrono" title="Indirizzo: ?diagnostica&amp;riconoscimento=sincrono · riconoscimento sul thread principale, come prima della Fase 2">Diagnostica · riconoscimento sincrono</a>
+        <a href="./?sorgente=griglia&amp;volto=simulato" data-page="griglia-simulato" title="Indirizzo: ?sorgente=griglia&amp;volto=simulato · senza videocamera">Test filtri · griglia e volto simulato</a>
+        <a href="./?sorgente=griglia&amp;volto=mediapipe" data-page="griglia-mediapipe" title="Indirizzo: ?sorgente=griglia&amp;volto=mediapipe · senza videocamera">Test riconoscimento · griglia e MediaPipe</a>
+      </nav>
+    </div>
+
     <p class="hint">
       <strong>Scorciatoie:</strong> H o M nasconde i comandi · doppio clic sullo specchio li riapre ·
-      ← → cambia filtro · R ruota lo schermo di 90° · F schermo intero · spazio avvia o ferma il cambio automatico.
+      ← → cambia filtro · R ruota lo schermo di 90° · F schermo intero · spazio avvia o ferma il cambio automatico ·
+      C cambia videocamera · D dati tecnici · E modalità di test (con effetti, senza deformazioni, solo video).
       <span class="hint__privacy">Le immagini restano su questo dispositivo: niente viene registrato né inviato.</span>
     </p>
   </section>
@@ -119,6 +157,6 @@
         'Lo specchio non funziona aperto come file: avvia il server e apri http://localhost:8080/smart-mirror/ (oppure l\'indirizzo online https://…/aqua-sito/smart-mirror/).';
     }
   </script>
-  <script type="module" src="mirror.js?v=8"></script>
+  <script type="module" src="mirror.js?v=13"></script>
 </body>
 </html>

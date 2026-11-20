@@ -1,7 +1,10 @@
 /* Aqua — smart mirror
    The webcam image is drawn mirrored on a WebGL canvas; a fragment shader warps the face areas
    found by MediaPipe Face Landmarker (loaded from ./vendor, so it works offline).
-   Only face-shaping filters: every filter is a combination of smooth, fold-free local warps. */
+   Only face-shaping filters: every filter is a combination of smooth, fold-free local warps.
+   Diagnostics (key D) live in diagnostics.js and only observe the pipeline. */
+
+import { createDiagnostics } from './diagnostics.js?v=4';
 
 const $ = (id) => document.getElementById(id);
 const video = $('source');
@@ -47,11 +50,39 @@ settings.rotation = [0, 1, 2, 3].includes(+settings.rotation) ? +settings.rotati
 if (!['auto', 'near', 'far', 'veryfar'].includes(settings.range)) settings.range = 'auto';
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) { /* ignore */ } };
 
-// Developer test mode (?prova): a generated grid replaces the webcam and a fake face sits in the middle.
-// Useful to check every warp without a camera or a person in front of the screen.
-const TEST_MODE = new URLSearchParams(location.search).has('prova');
-// ?prova=ai runs the real face AI on the grid instead of the fake face (checks the detection path)
-const TEST_AI = new URLSearchParams(location.search).get('prova') === 'ai';
+// Processing test modes, to compare image quality, delay and smoothness with and without effects.
+// Never saved: the mirror always starts with the full processing.
+// The ids are also the values of ?elaborazione= in the address and of "processing" in the log.
+const PROCESSING = [
+  { id: 'completa', label: 'Completa · con effetti' },
+  { id: 'senza-deformazioni', label: 'Senza deformazioni · riconoscimento attivo' },
+  { id: 'solo-video', label: 'Solo video · nessuna elaborazione' },
+];
+let processing = 'completa';
+
+/* ---------- Address options (all combinable) ----------
+   ?diagnostica                                   opens the diagnostics panel
+   ?sorgente=webcam | griglia                     camera image, or a generated test grid (no camera needed)
+   ?volto=mediapipe | simulato                    with the grid: real face AI, or a fixed simulated face
+   ?elaborazione=completa | senza-deformazioni | solo-video   starts in that processing test mode
+   ?riconoscimento=worker | sincrono              face AI in its own thread (default) or, as before
+                                                  Fase 2, on the main thread before drawing (for comparison)
+   e.g. ?sorgente=griglia&volto=mediapipe&diagnostica
+   The old short forms keep working: ?diag, ?prova (= griglia + simulato), ?prova=ai (= griglia + mediapipe). */
+const query = new URLSearchParams(location.search);
+const SOURCE = query.get('sorgente') === 'griglia' || query.has('prova') ? 'griglia' : 'webcam';
+const FACE = SOURCE === 'griglia'
+  && (query.get('volto') || (query.get('prova') === 'ai' ? 'mediapipe' : 'simulato')) !== 'mediapipe' ? 'simulato' : 'mediapipe';
+const OPEN_DIAGNOSTICS = query.has('diagnostica') || query.has('diag');
+const START_PROCESSING = query.get('elaborazione');
+const RECOGNITION = query.get('riconoscimento') === 'sincrono' ? 'sincrono' : 'worker';
+// Test grid: checks every warp without a camera or a person in front of the screen
+const TEST_MODE = SOURCE === 'griglia';
+// Real face AI on the grid instead of the simulated face (checks the detection path)
+const TEST_AI = TEST_MODE && FACE === 'mediapipe';
+// Name of the current address, used to highlight its shortcut in the panel
+const PAGE = TEST_MODE ? `griglia-${FACE}`
+  : OPEN_DIAGNOSTICS ? (RECOGNITION === 'sincrono' ? 'diagnostica-sincrono' : 'diagnostica') : 'specchio';
 
 /* ---------- Messages ---------- */
 let quietTimer = 0;
@@ -159,6 +190,49 @@ captionsEl.addEventListener('change', () => {
 autoEl.addEventListener('change', () => { settings.auto = autoEl.checked; lastSwitch = performance.now(); save(); });
 secondsEl.addEventListener('change', () => { settings.seconds = +secondsEl.value; save(); });
 cameraEl.addEventListener('change', () => { settings.camera = cameraEl.value; save(); startCamera(); });
+// Continuity Camera (iPhone) and USB cameras can appear later: keep the list up to date
+navigator.mediaDevices?.addEventListener?.('devicechange', () => listCameras());
+$('cameraRefresh').addEventListener('click', () => listCameras({ announce: true }));
+
+// C key: next camera in the list (works with the panel hidden)
+async function nextCamera() {
+  const ids = [...cameraEl.options].map((o) => o.value).filter(Boolean);
+  if (!ids.length) { note('Nessun\'altra videocamera disponibile.'); return; }
+  const current = settings.camera || activeDeviceId;
+  const next = ids[(ids.indexOf(current) + 1) % ids.length];
+  settings.camera = next;
+  cameraEl.value = next;
+  save();
+  const label = cameraEl.selectedOptions[0]?.textContent || 'Videocamera';
+  note(`Videocamera: ${label}`);
+  toast(label);
+  startCamera();
+}
+
+// Processing test mode (E key or panel): the badge keeps it visible, so it is never left on by mistake
+const processingEl = $('processing');
+const testBadge = $('testBadge');
+PROCESSING.forEach((p) => processingEl.append(new Option(p.label, p.id)));
+function setProcessing(id) {
+  if (!PROCESSING.some((p) => p.id === id)) id = 'completa';
+  processing = id;
+  processingEl.value = id;
+  const p = PROCESSING.find((x) => x.id === id);
+  testBadge.hidden = id === 'completa';
+  testBadge.textContent = `Test · ${p.label}`;
+  diag.reset(`elaborazione: ${p.label}`);
+}
+processingEl.addEventListener('change', () => setProcessing(processingEl.value));
+function stepProcessing() {
+  const i = PROCESSING.findIndex((p) => p.id === processing);
+  setProcessing(PROCESSING[(i + 1) % PROCESSING.length].id);
+  note(`Elaborazione: ${PROCESSING.find((p) => p.id === processing).label}`);
+}
+$('diagToggle').addEventListener('click', () => diag.toggle());
+
+// Page shortcuts in the panel: mark the one currently open
+document.querySelectorAll('.pages a').forEach((a) => { if (a.dataset.page === PAGE) a.setAttribute('aria-current', 'page'); });
+
 $('prev').addEventListener('click', () => stepFilter(-1));
 $('next').addEventListener('click', () => stepFilter(1));
 
@@ -175,7 +249,6 @@ $('hide').addEventListener('click', () => setMenu(true));
 $('fullscreen').addEventListener('click', toggleFullscreen);
 canvas.addEventListener('dblclick', () => setMenu(!document.body.classList.contains('ui-hidden')));
 
-let showDebug = false;
 document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   // Letter shortcuts always work, even after using a menu or slider in the panel;
@@ -190,7 +263,9 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'arrowright') stepFilter(1);
   else if (k === 'arrowleft') stepFilter(-1);
   else if (k === ' ') { autoEl.checked = !autoEl.checked; autoEl.dispatchEvent(new Event('change')); }
-  else if (k === 'd') { showDebug = !showDebug; debugCanvas.hidden = !showDebug; }
+  else if (k === 'd') diag.toggle();
+  else if (k === 'e') stepProcessing();
+  else if (k === 'c') nextCamera();
   else if (k === 'r') setRotation(settings.rotation + 1);
   else return;
   e.preventDefault();
@@ -386,6 +461,18 @@ let program = null;
 let texture = null;
 const loc = {};
 
+let lastFaceCount = 0;
+const diag = createDiagnostics({
+  video, canvas, gl,
+  state: () => ({
+    settings, delegate, aiReady, zoom: zoomInUse, faces: lastFaceCount, processing, recognition, recognitionNote,
+    processingLabel: PROCESSING.find((p) => p.id === processing).label,
+    filterLabel: FILTERS.find((f) => f.id === mode)?.label || '—',
+    testMode: TEST_MODE ? `sorgente=griglia, volto=${FACE}` : '', simulatedFace: TEST_MODE && !TEST_AI,
+  }),
+  onToggle: (on) => { debugCanvas.hidden = !on; },
+});
+
 function compile(type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
@@ -465,8 +552,12 @@ function faceParams(lm, va) {
 
 // Tracked faces keep their own smoothing and fade. Detections are paired with tracks globally,
 // closest pairs first (distance measured in face widths), so two people never swap effects.
+// "time" is the capture time of the analysed camera frame: with the AI in the worker the points
+// arrive one frame late, so each track also keeps its speed and is moved forward to the frame on screen.
 let tracks = [];
-function updateTracks(detected, now) {
+const PREDICT_MAX_S = 0.1;    // never predict further than 100 ms
+const PREDICT_MAX_SHIFT = 0.35; // and never more than 35% of the face half width
+function updateTracks(detected, now, time = null) {
   const pairs = [];
   detected.forEach((raw, d) => tracks.forEach((t, k) => {
     pairs.push([Math.hypot(t.raw[0] - raw[0], t.raw[1] - raw[1]) / Math.max(raw[4], t.raw[4]), d, k]);
@@ -478,21 +569,43 @@ function updateTracks(detected, now) {
     if (dist > 1.3 || usedDetections.has(d) || usedTracks.has(k)) continue;
     usedDetections.add(d);
     usedTracks.add(k);
-    Object.assign(tracks[k], { raw: detected[d], seen: now, hits: tracks[k].hits + 1 });
+    const t = tracks[k];
+    const raw = detected[d];
+    // speed of every parameter between two analysed frames (smoothed), used for the prediction
+    const gap = time !== null && t.rawTime !== null ? (time - t.rawTime) / 1000 : 0;
+    if (gap > 0.005 && gap < 0.2) {
+      for (let i = 0; i < PARAMS; i++) t.vel[i] = t.vel[i] * 0.5 + ((raw[i] - t.raw[i]) / gap) * 0.5;
+    } else {
+      t.vel.fill(0);
+    }
+    Object.assign(t, { raw, rawTime: time, seen: now, hits: t.hits + 1 });
   }
   detected.forEach((raw, d) => {
     if (!usedDetections.has(d)) {
-      tracks.push({ raw, value: Float32Array.from(raw), filters: raw.map(() => new OneEuro()), weight: 0, seen: now, hits: 1 });
+      tracks.push({
+        raw, rawTime: time, vel: new Float32Array(PARAMS), value: Float32Array.from(raw),
+        filters: raw.map(() => new OneEuro()), weight: 0, seen: now, hits: 1,
+      });
     }
   });
 }
-function stepTracks(now, dt) {
+// shownTime: capture time of the camera frame on screen (null = same frame as the points)
+let lastLead = 0;
+function stepTracks(now, dt, shownTime = null) {
+  lastLead = 0;
   for (const t of tracks) {
     // far (small) faces have noisier points: smooth them more, and measure speed relative to the face size
     const size = Math.max(0.02, t.value[4]);
     const minCutoff = Math.min(1.4, Math.max(0.5, size * 8));
     const beta = 14 * (0.15 / size);
-    for (let i = 0; i < PARAMS; i++) t.value[i] = t.filters[i].filter(t.raw[i], dt, minCutoff, beta);
+    // prediction: move the points forward by their speed, to the time of the frame on screen
+    const lead = shownTime !== null && t.rawTime !== null ? Math.min(PREDICT_MAX_S, Math.max(0, (shownTime - t.rawTime) / 1000)) : 0;
+    const maxShift = PREDICT_MAX_SHIFT * size;
+    lastLead = Math.max(lastLead, lead * 1000);
+    for (let i = 0; i < PARAMS; i++) {
+      const target = lead ? t.raw[i] + Math.min(maxShift, Math.max(-maxShift, t.vel[i] * lead)) : t.raw[i];
+      t.value[i] = t.filters[i].filter(target, dt, minCutoff, beta);
+    }
     const n = Math.hypot(t.value[2], t.value[3]) || 1;
     t.value[2] /= n; t.value[3] /= n;
     const visible = t.hits >= CONFIRM_HITS && now - t.seen < HOLD_MS;
@@ -511,27 +624,69 @@ function stepTracks(now, dt) {
   return count;
 }
 
-let landmarker = null;
+/* ---------- Face AI: in a Web Worker (default) or on the main thread ---------- */
+const MEDIAPIPE_BASE = new URL('vendor/mediapipe/', location.href).href;
+const LANDMARKER_OPTIONS = {
+  runningMode: 'VIDEO', numFaces: MAX_FACES,
+  // lower than the defaults (0.5): faces with glasses, far away or in dim light still count;
+  // the confirmation in updateTracks keeps occasional false detections out
+  minFaceDetectionConfidence: 0.35, minFacePresenceConfidence: 0.4, minTrackingConfidence: 0.4,
+};
+
+let landmarker = null;      // main-thread landmarker ("sincrono")
+let faceWorker = null;      // worker running the landmarker ("worker")
+let aiReady = false;
 let delegate = '';
+let recognition = RECOGNITION;
+let recognitionNote = '';   // why the worker is not used, when it fell back
+
+function startWorker() {
+  return new Promise((resolve, reject) => {
+    const w = new Worker(new URL('face-worker.js?v=1', location.href), { type: 'module' });
+    const timer = setTimeout(() => { w.terminate(); reject(new Error('il worker non ha risposto in 45 s')); }, 45000);
+    w.onmessage = (e) => {
+      if (e.data.type === 'ready') { clearTimeout(timer); w.onmessage = onWorkerMessage; resolve({ w, delegate: e.data.delegate }); }
+      else if (e.data.type === 'error') { clearTimeout(timer); w.terminate(); reject(new Error(e.data.message)); }
+    };
+    w.onerror = (e) => { clearTimeout(timer); w.terminate(); reject(new Error(e.message || 'errore del worker')); };
+    w.postMessage({ type: 'init', base: MEDIAPIPE_BASE, options: LANDMARKER_OPTIONS });
+  });
+}
+
+async function startMainThreadLandmarker() {
+  const { FaceLandmarker, FilesetResolver } = await import(`${MEDIAPIPE_BASE}vision_bundle.mjs`);
+  const fileset = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}wasm`);
+  // GPU is much faster; some computers only manage the CPU version
+  for (const d of ['GPU', 'CPU']) {
+    try {
+      landmarker = await FaceLandmarker.createFromOptions(fileset, {
+        ...LANDMARKER_OPTIONS, baseOptions: { modelAssetPath: `${MEDIAPIPE_BASE}models/face_landmarker.task`, delegate: d },
+      });
+      delegate = d;
+      break;
+    } catch (e) { console.warn(`Face Landmarker (${d})`, e); }
+  }
+  if (!landmarker) throw new Error('modello non avviato');
+}
+
 async function loadLandmarker() {
   try {
-    const base = new URL('vendor/mediapipe/', location.href).href;
-    const { FaceLandmarker, FilesetResolver } = await import(`${base}vision_bundle.mjs`);
-    const fileset = await FilesetResolver.forVisionTasks(`${base}wasm`);
-    const options = (d) => ({
-      baseOptions: { modelAssetPath: `${base}models/face_landmarker.task`, delegate: d },
-      runningMode: 'VIDEO', numFaces: MAX_FACES,
-      // lower than the defaults (0.5): faces with glasses, far away or in dim light still count;
-      // the confirmation in updateTracks keeps occasional false detections out
-      minFaceDetectionConfidence: 0.35, minFacePresenceConfidence: 0.4, minTrackingConfidence: 0.4,
-    });
-    // GPU is much faster; some computers only manage the CPU version
-    for (const d of ['GPU', 'CPU']) {
-      try { landmarker = await FaceLandmarker.createFromOptions(fileset, options(d)); delegate = d; break; } catch (e) { console.warn(`Face Landmarker (${d})`, e); }
+    if (recognition === 'worker') {
+      try {
+        const { w, delegate: d } = await startWorker();
+        faceWorker = w;
+        delegate = d;
+      } catch (err) {
+        // older browsers: keep the mirror working with the AI on the main thread
+        console.warn('Face AI worker non disponibile, uso il thread principale', err);
+        recognition = 'sincrono';
+        recognitionNote = `worker non disponibile (${err.message})`;
+      }
     }
-    if (!landmarker) throw new Error('modello non avviato');
-    // do not hide a camera problem behind a "ready" message
-    if (videoReady) note('Specchio pronto: mettiti davanti alla videocamera.');
+    if (recognition === 'sincrono') await startMainThreadLandmarker();
+    aiReady = true;
+    // do not hide a camera problem (or the test grid message) behind a "ready" message
+    if (videoReady && !TEST_MODE) note('Specchio pronto: mettiti davanti alla videocamera.');
   } catch (err) {
     console.error(err);
     note('Riconoscimento del volto non disponibile: lo specchio funziona solo come specchio normale.', { sticky: true });
@@ -543,13 +698,18 @@ let stream = null;
 let videoReady = false;
 let retryTimer = 0;
 
-async function listCameras() {
+let activeDeviceId = '';
+let activeLabel = '';
+
+async function listCameras({ announce = false } = {}) {
   try {
     const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
     cameraEl.innerHTML = '';
-    cameraEl.append(new Option('Predefinita', ''));
+    // "Predefinita" also says which camera the browser actually picked
+    cameraEl.append(new Option(activeLabel && !settings.camera ? `Predefinita · ${activeLabel}` : 'Predefinita', ''));
     devices.forEach((d, i) => cameraEl.append(new Option(d.label || `Videocamera ${i + 1}`, d.deviceId)));
     cameraEl.value = devices.some((d) => d.deviceId === settings.camera) ? settings.camera : '';
+    if (announce) note(`Videocamere trovate: ${devices.length}. L'iPhone (Continuity Camera) compare quando è vicino, bloccato e fermo.`);
   } catch (e) { /* list not available */ }
 }
 
@@ -561,6 +721,7 @@ async function startCamera() {
       throw Object.assign(new Error('La videocamera funziona solo da https:// o da http://localhost.'), { name: 'Insecure' });
     }
     if (stream) stream.getTracks().forEach((t) => t.stop());
+    diag.setStream(null);
     note('Richiesta del permesso per la videocamera…', { sticky: true });
     // Full HD when the camera allows it: far faces get more pixels for the AI and the image is sharper
     const video_ = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
@@ -585,9 +746,14 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
     videoReady = true;
+    const track = stream.getVideoTracks()[0];
+    activeDeviceId = track.getSettings().deviceId || '';
+    activeLabel = track.label || '';
+    diag.setStream(stream, video_);
+    watchFrames();
     listCameras();
     keepAwake();
-    note(landmarker ? 'Specchio pronto: mettiti davanti alla videocamera.' : 'Videocamera attiva. Avvio del riconoscimento del volto…');
+    note(aiReady ? 'Specchio pronto: mettiti davanti alla videocamera.' : 'Videocamera attiva. Avvio del riconoscimento del volto…');
   } catch (err) {
     videoReady = false;
     console.error(err);
@@ -604,7 +770,7 @@ async function startCamera() {
   }
 }
 
-// ?prova: grid + fake face, to check the warps without a camera
+// ?sorgente=griglia: test grid (+ simulated face unless volto=mediapipe), to check the warps without a camera
 function startTestPattern() {
   const c = document.createElement('canvas');
   c.width = 1280; c.height = 720;
@@ -617,11 +783,28 @@ function startTestPattern() {
   for (const [x, y, r] of [[560, 300, 34], [720, 300, 34], [640, 390, 26], [640, 470, 40]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
   g.strokeStyle = '#ede6d8'; g.lineWidth = 4;
   g.beginPath(); g.ellipse(640, 380, 190, 240, 0, 0, Math.PI * 2); g.stroke();
-  video.srcObject = c.captureStream(30);
+  // a small frame counter keeps the grid "live" (30 new frames per second, like a camera),
+  // so the diagnostics and the face AI work on a real stream of frames
+  const still = g.getImageData(1080, 670, 190, 40);
+  let tick = 0;
+  clearInterval(testTimer);
+  testTimer = setInterval(() => {
+    g.putImageData(still, 1080, 670);
+    g.fillStyle = '#b89a5e';
+    g.font = '500 20px Manrope, system-ui, sans-serif';
+    g.textAlign = 'right';
+    g.fillText(`fotogramma ${++tick}`, 1262, 698);
+  }, 1000 / 30);
+  const testStream = c.captureStream(30);
+  video.srcObject = testStream;
   video.play().then(() => {
     videoReady = true;
+    diag.setStream(testStream, { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } });
+    watchFrames();
     // stays on screen with a way out, so nobody gets stuck on the grid
-    statusEl.textContent = 'Modalità di prova: griglia e volto finto, senza videocamera. ';
+    statusEl.textContent = TEST_AI
+      ? 'Test riconoscimento: griglia senza videocamera, con MediaPipe. '
+      : 'Test filtri: griglia e volto simulato, senza videocamera. ';
     const link = document.createElement('a');
     link.href = location.pathname;
     link.textContent = 'Usa la webcam →';
@@ -634,25 +817,45 @@ function startTestPattern() {
     ...p(640, 615), ...p(640, 200), ...p(530, 420), ...p(750, 420), ...p(600, 470), ...p(680, 470)];
 }
 let testFace = null;
+let testTimer = 0;
+
+/* ---------- Camera frames ----------
+   requestVideoFrameCallback says exactly when the camera delivers a new frame, so the texture is
+   uploaded once per frame and the face AI analyses each frame once (not at every screen refresh). */
+const HAS_VFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+let frameSeq = 0;        // camera frames seen so far
+let frameTime = 0;       // capture time of the newest frame (ms, performance.now clock)
+let shownSeq = -1;       // frame currently in the texture
+let shownTime = null;    // ...and its capture time
+let vfcHandle = 0;
+let lastVideoTime = -1;  // fallback for browsers without requestVideoFrameCallback
+
+function onCameraFrame(now, md) {
+  frameSeq++;
+  frameTime = md.captureTime || now;
+  vfcHandle = video.requestVideoFrameCallback(onCameraFrame);
+  if (recognition === 'worker') sendFrameToWorker();
+}
+function watchFrames() {
+  if (!HAS_VFC) return;
+  if (vfcHandle) video.cancelVideoFrameCallback(vfcHandle);
+  vfcHandle = video.requestVideoFrameCallback(onCameraFrame);
+}
 
 /* ---------- Render loop ---------- */
-let lastVideoTime = -1;
 let lastFrame = performance.now();
-let detectMs = 0;
 let noFaceSince = performance.now();
-let frames = 0;
-let fps = 0;
-let fpsTime = performance.now();
 
 function resize() {
-  // cap the canvas size: on 4K TVs the warp still looks sharp and stays fast
+  // Full physical resolution: the browser shows the canvas 1:1, without an extra (non-integer) resize.
+  // Only screens beyond 4K are divided by a whole number, which keeps the scaling clean.
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   let w = Math.round(innerWidth * dpr);
   let h = Math.round(innerHeight * dpr);
-  const cap = 2560 / Math.max(w, h);
-  if (cap < 1) { w = Math.round(w * cap); h = Math.round(h * cap); }
+  const k = Math.ceil(Math.max(w, h) / 4096);
+  if (k > 1) { w = Math.round(w / k); h = Math.round(h / k); }
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
-  if (showDebug && (debugCanvas.width !== innerWidth || debugCanvas.height !== innerHeight)) { debugCanvas.width = innerWidth; debugCanvas.height = innerHeight; }
+  if (diag.visible && (debugCanvas.width !== innerWidth || debugCanvas.height !== innerHeight)) { debugCanvas.width = innerWidth; debugCanvas.height = innerHeight; }
 }
 
 /* ---------- Detection area ----------
@@ -669,41 +872,88 @@ let lastHit = 0;
 let lastZoomChange = 0;
 let zoomInUse = 1;
 
-function detect(now) {
-  if (TEST_MODE && !TEST_AI) { if (testFace) updateTracks([testFace], now); return; }
-  if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
-  lastVideoTime = video.currentTime;
-  const t0 = performance.now();
+// centred area of the frame analysed by the AI, same proportions as the camera image
+function analysisArea() {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   const zoom = settings.range === 'auto' ? AUTO_ZOOMS[autoZoomIndex] : (RANGE_ZOOM[settings.range] || 1);
   zoomInUse = zoom;
-  // centred area of the frame, same proportions as the camera image
-  const sx = (vw - vw / zoom) / 2;
-  const sy = (vh - vh / zoom) / 2;
+  return { vw, vh, zoom, sx: (vw - vw / zoom) / 2, sy: (vh - vh / zoom) / 2, sw: vw / zoom, sh: vh / zoom };
+}
+
+// landmarks (relative to the analysed area) -> face parameters on the whole frame -> tracks
+function applyLandmarks(found, area, now, time) {
+  const { vw, vh, zoom, sx, sy } = area;
+  const toFrame = (lm) => (zoom > 1 ? lm.map((p) => ({ x: sx / vw + p.x / zoom, y: sy / vh + p.y / zoom })) : lm);
+  updateTracks(found.map((lm) => faceParams(toFrame(lm), vw / vh)), now, time);
+  if (found.length) lastHit = now;
+  else if (settings.range === 'auto' && now - lastHit > 1500 && now - lastZoomChange > 1500) {
+    autoZoomIndex = (autoZoomIndex + 1) % AUTO_ZOOMS.length;
+    lastZoomChange = now;
+  }
+}
+
+// "sincrono": AI on the main thread, on the new frame, before it is drawn
+function detect(now, seq, time) {
+  if (!landmarker || video.readyState < 2) return;
+  const t0 = performance.now();
+  const area = analysisArea();
   try {
     let source = video;
-    if (zoom > 1) {
+    if (area.zoom > 1) {
       // the crop keeps its own pixels (no upscaling): what matters is that the face fills more of the image
-      const cw = Math.round(vw / zoom);
-      const ch = Math.round(vh / zoom);
+      const cw = Math.round(area.sw);
+      const ch = Math.round(area.sh);
       if (detectCanvas.width !== cw || detectCanvas.height !== ch) { detectCanvas.width = cw; detectCanvas.height = ch; }
-      detectCtx.drawImage(video, sx, sy, vw / zoom, vh / zoom, 0, 0, cw, ch);
+      detectCtx.drawImage(video, area.sx, area.sy, area.sw, area.sh, 0, 0, cw, ch);
       source = detectCanvas;
     }
+    const tInfer = performance.now();
     const result = landmarker.detectForVideo(source, now);
-    const found = result.faceLandmarks || [];
-    // landmarks are relative to the analysed area: bring them back to the whole camera frame
-    const toFrame = (lm) => (zoom > 1 ? lm.map((p) => ({ x: sx / vw + p.x / zoom, y: sy / vh + p.y / zoom })) : lm);
-    const va = vw / vh;
-    updateTracks(found.map((lm) => faceParams(toFrame(lm), va)), now);
-    if (found.length) lastHit = now;
-    else if (settings.range === 'auto' && now - lastHit > 1500 && now - lastZoomChange > 1500) {
-      autoZoomIndex = (autoZoomIndex + 1) % AUTO_ZOOMS.length;
-      lastZoomChange = now;
-    }
+    const inferMs = performance.now() - tInfer;
+    applyLandmarks(result.faceLandmarks || [], area, now, time);
+    diag.detection(inferMs, performance.now() - t0, seq);
   } catch (err) { console.warn('Face Landmarker', err); }
-  detectMs = detectMs * 0.9 + (performance.now() - t0) * 0.1;
+}
+
+// "worker": the newest frame goes to the worker as soon as it arrives; one frame at a time,
+// and if frames arrive while the worker is busy, only the newest one is sent afterwards
+let workerBusy = false;
+let workerPending = false;
+async function sendFrameToWorker() {
+  if (!faceWorker || processing === 'solo-video' || !videoReady || video.readyState < 2) return;
+  if (workerBusy) { workerPending = true; return; }
+  workerBusy = true;
+  workerPending = false;
+  const seq = frameSeq;
+  const time = frameTime;
+  const sent = performance.now();
+  const area = analysisArea();
+  try {
+    const bitmap = await createImageBitmap(video, area.sx, area.sy, area.sw, area.sh);
+    faceWorker.postMessage({ type: 'detect', bitmap, seq, time, sent, area }, [bitmap]);
+  } catch (err) {
+    workerBusy = false;
+    console.warn('Frame per il worker', err);
+  }
+}
+function onWorkerMessage(e) {
+  const m = e.data;
+  if (m.type !== 'result') return;
+  workerBusy = false;
+  const now = performance.now();
+  if (m.error) console.warn('Face Landmarker (worker)', m.error);
+  // packed x,y pairs -> landmark objects, as returned on the main thread
+  const found = m.faces.map((packed) => {
+    const lm = new Array(packed.length / 2);
+    for (let i = 0; i < lm.length; i++) lm[i] = { x: packed[2 * i], y: packed[2 * i + 1] };
+    return lm;
+  });
+  if (processing !== 'solo-video') {
+    applyLandmarks(found, m.area, now, m.time);
+    diag.detection(m.inferMs, now - m.sent, m.seq);
+  }
+  if (workerPending) sendFrameToWorker();
 }
 
 function render(now) {
@@ -711,11 +961,27 @@ function render(now) {
   if (!program) return;
   const dt = Math.min(0.1, Math.max(0.001, (now - lastFrame) / 1000));
   lastFrame = now;
+  diag.frame(now);
   resize();
   if (!videoReady || video.readyState < 2) { gl.clearColor(0.055, 0.082, 0.078, 1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
 
-  detect(now);
-  const faceCount = stepTracks(now, dt);
+  // new camera frame since the last draw? (fallback without requestVideoFrameCallback: currentTime)
+  if (!HAS_VFC && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    frameSeq++;
+    frameTime = now;
+    if (recognition === 'worker') sendFrameToWorker();
+  }
+  const fresh = frameSeq !== shownSeq;
+
+  // "Solo video" skips the face AI entirely; tracks then fade out by themselves
+  if (TEST_MODE && !TEST_AI) { if (testFace && processing !== 'solo-video') updateTracks([testFace], now); }
+  else if (fresh && recognition === 'sincrono' && processing !== 'solo-video') detect(now, frameSeq, frameTime);
+  const tDraw = performance.now();
+  // points are predicted to the capture time of the frame about to be shown
+  const nextShownTime = fresh ? frameTime : shownTime;
+  const faceCount = stepTracks(now, dt, recognition === 'worker' ? nextShownTime : null);
+  lastFaceCount = faceCount;
 
   // fade between filters: out, switch, in
   if (pendingMode !== null) {
@@ -728,30 +994,36 @@ function render(now) {
 
   // invite people to come closer when nobody is in front of the mirror
   if (faceCount && tracks[0].weight > 0.5) noFaceSince = now;
-  const lonely = (landmarker || TEST_MODE) && now - noFaceSince > 3000 && document.body.classList.contains('ui-hidden');
+  const lonely = processing !== 'solo-video' && (aiReady || TEST_MODE) && now - noFaceSince > 3000 && document.body.classList.contains('ui-hidden');
   promptEl.classList.toggle('is-on', lonely);
 
   gl.useProgram(program);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+  // upload only new camera frames: between two frames the texture already holds the right image
+  if (fresh) {
+    diag.upload(frameSeq, lastLead);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    shownSeq = frameSeq;
+    shownTime = frameTime;
+  }
   gl.uniform2f(loc.uResolution, canvas.width, canvas.height);
   gl.uniform2f(loc.uVideoSize, video.videoWidth, video.videoHeight);
   gl.uniform1i(loc.uFit, settings.fit === 'contain' ? 1 : 0);
   gl.uniform1i(loc.uRotation, settings.rotation);
-  gl.uniform1i(loc.uMode, mode);
+  // test modes draw the same pipeline with the warps switched off (mode 0 = no warp in the shader)
+  gl.uniform1i(loc.uMode, processing === 'completa' ? mode : 0);
   const eased = fade * fade * (3 - 2 * fade);
   gl.uniform1f(loc.uAmount, (settings.strength / 100) * eased);
   gl.uniform1i(loc.uFaceCount, faceCount);
   gl.uniform4fv(loc.uFace, faceUniforms);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  diag.drawn(performance.now() - tDraw);
 
-  frames++;
-  if (now - fpsTime > 1000) { fps = Math.round(frames * 1000 / (now - fpsTime)); frames = 0; fpsTime = now; }
-  if (showDebug) drawDebug(faceCount);
+  if (diag.visible) drawDebug(faceCount);
 }
 
-// D key: face frames and timings, to tune the filters
+// D key: face points, camera frame outline and "up" marker over the mirror (numbers are in the diagnostics panel)
 function drawDebug(faceCount) {
   const g = debugCanvas.getContext('2d');
   const W = debugCanvas.width;
@@ -765,15 +1037,40 @@ function drawDebug(faceCount) {
   let sx = 1, sy = 1;
   if (settings.fit !== 'contain') { if (aspect > va) sy = va / aspect; else sx = aspect / va; }
   else { if (aspect > va) sx = aspect / va; else sy = va / aspect; }
-  // square texture space -> upright image -> rotated screen pixels (inverse of the shader mapping)
-  const toScreen = (x, y) => {
-    let cx = (1 - ((x / va - 0.5) / sx + 0.5) - 0.5) * VW;
-    let cy = ((y - 0.5) / sy) * VH;
+  // upright image (centre origin, y up) -> rotated screen pixels
+  const uprightToScreen = (cx, cy) => {
     if (rot === 1) [cx, cy] = [cy, -cx];
     else if (rot === 2) [cx, cy] = [-cx, -cy];
     else if (rot === 3) [cx, cy] = [-cy, cx];
     return [W / 2 + cx, H / 2 - cy];
   };
+  // square texture space -> upright image -> rotated screen pixels (inverse of the shader mapping)
+  const toScreen = (x, y) => uprightToScreen((1 - ((x / va - 0.5) / sx + 0.5) - 0.5) * VW, ((y - 0.5) / sy) * VH);
+
+  // edge of the camera frame (visible with "Contieni"; outside the screen with "Riempi")
+  g.setLineDash([8, 6]);
+  g.strokeStyle = 'rgba(237,230,216,.55)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  [[0, 0], [va, 0], [va, 1], [0, 1]].forEach(([x, y], i) => { const [px, py] = toScreen(x, y); if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+  g.closePath();
+  g.stroke();
+  g.setLineDash([]);
+
+  // "up" marker of the upright image: must point to the ceiling on the installed TV
+  // (a little above the centre, so the diagnostics panel never covers it)
+  const [ux, uy] = uprightToScreen(0, VH * 0.18);
+  g.save();
+  g.translate(ux, uy);
+  g.rotate(rot * Math.PI / 2);
+  g.fillStyle = 'rgba(14,21,20,.8)';
+  g.fillRect(-58, -18, 116, 36);
+  g.fillStyle = '#b89a5e';
+  g.font = '500 15px Manrope, system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('↑ ALTO', 0, 1);
+  g.restore();
   for (let i = 0; i < faceCount; i++) {
     const v = tracks[i].value;
     g.strokeStyle = `rgba(184,154,94,${tracks[i].weight})`;
@@ -784,17 +1081,15 @@ function drawDebug(faceCount) {
     const [ex, ey] = toScreen(v[0] + v[2] * v[4], v[1] + v[3] * v[4]);
     g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
   }
-  g.fillStyle = 'rgba(14,21,20,.8)';
-  g.fillRect(12, H - 40, 380, 28);
-  g.fillStyle = '#ede6d8';
-  g.font = '12px Manrope, system-ui, sans-serif';
-  g.fillText(`${fps} fps · volti ${faceCount} · AI ${delegate || (TEST_MODE ? 'prova' : '—')} ${detectMs.toFixed(1)} ms · zoom ${zoomInUse}× · ${video.videoWidth}×${video.videoHeight}`, 22, H - 21);
 }
 
 /* ---------- Start ---------- */
 setFilter(settings.filter, { announce: false });
 mode = settings.filter; pendingMode = null;
 if (settings.uiHidden) document.body.classList.add('ui-hidden');
+// address options: diagnostics panel open, processing test mode
+if (OPEN_DIAGNOSTICS) diag.toggle(true);
+if (START_PROCESSING && START_PROCESSING !== 'completa') setProcessing(START_PROCESSING);
 try {
   initGL();
   requestAnimationFrame(render);
