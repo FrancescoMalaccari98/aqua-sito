@@ -477,6 +477,8 @@ img[data-foto]:not([src]) { visibility: hidden; }
 .js .reveal .frame img { transform: scale(1.18); }
 .js .reveal.is-visible .frame img { transform: scale(1); transition: transform 2.2s var(--ease-out), filter 1s var(--ease); }
 .js .reveal.is-visible:hover .frame img { transform: scale(1.04); transition-duration: 1.6s; }
+/* photos after the quote have no reveal animation, but keep the gentle zoom on hover */
+.gallery__item:hover .frame img, .visit__figure:hover .frame img { transform: scale(1.04); }
 
 /* ---------- Details ---------- */
 .hero__address { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--stone); margin-left: auto; margin-right: 32px; }
