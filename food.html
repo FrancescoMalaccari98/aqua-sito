@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Il menu food — Aqua</title>
+  <meta name="description" content="Il menu food di Aqua: lasagna, polpette, caponata, roast beef, stracotto, tartare, prosciutto a coltello e formaggi.">
+  <meta name="theme-color" content="#0E1514">
+  <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=2">
+  <link rel="manifest" href="manifest.webmanifest?v=2">
+  <!-- Link preview when the menu link is shared (WhatsApp, Facebook…). Replace the domain if it changes. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Aqua cocktail bar">
+  <meta property="og:title" content="Il menu food — Aqua">
+  <meta property="og:description" content="Il menu food di Aqua, cocktail bar a Civitanova Marche.">
+  <meta property="og:image" content="https://francescomalaccari98.github.io/aqua-sito/assets/img/foto-4eb9834907ff.jpg">
+  <meta property="og:image:width" content="1920">
+  <meta property="og:image:height" content="2879">
+  <meta property="og:url" content="https://francescomalaccari98.github.io/aqua-sito/food.html">
+  <meta property="og:locale" content="it_IT">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://francescomalaccari98.github.io/aqua-sito/food.html">
+  <link rel="preload" href="assets/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/fonts.css?v=27">
+  <link rel="stylesheet" href="assets/css/style.css?v=44">
+</head>
+<body class="carta-page">
+  <a class="skip" href="#contenuto">Vai al contenuto</a>
+  <!-- Fixed background behind the menu: the photo is chosen in data/foto.properties (food.sfondo.foto) -->
+  <div class="carta-bg" aria-hidden="true"><img data-foto="food.sfondo" alt=""></div>
+
+  <header class="legal-top">
+    <div class="wrap legal-top__inner">
+      <a class="wordmark" href="index.html" aria-label="Aqua, vai al sito"><svg class="logo" viewBox="0 0 1084 302" aria-hidden="true" focusable="false"><use href="assets/brand/logo.svg#aqua"></use></svg></a>
+      <a class="link-arrow" href="index.html">Il sito <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
+
+  <!-- All menu content comes from data/food.properties (see assets/js/carta.js) -->
+  <main id="contenuto" class="carta wrap" data-carta-page data-source="data/food.properties">
+    <p class="eyebrow">Aqua · Cocktail bar</p>
+    <h1 class="display">Il menu <em>food</em></h1>
+    <p class="carta__lead">Da accompagnare ai cocktail. <a class="link-arrow" href="carta.html">La carta dei drink <span aria-hidden="true">→</span></a></p>
+
+    <nav class="carta__nav" aria-label="Categorie del menu food" data-carta-nav></nav>
+
+    <div data-carta-body>
+      <noscript><p class="carta__error">Per vedere il menu serve JavaScript attivo. Chiedete pure al bancone.</p></noscript>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <p class="site-footer__mark" aria-hidden="true"><svg viewBox="0 0 1084 302" focusable="false"><use href="assets/brand/logo.svg#aqua"></use></svg></p>
+      <p class="site-footer__small">© 2026 Aqua<span class="hide-sm"> cocktail bar · Corso Umberto I, 31 · Civitanova Marche (MC)</span></p>
+      <p class="site-footer__small site-footer__legal"><a href="privacy.html#privacy">Privacy</a> · <a href="privacy.html#cookie">Cookie</a></p>
+      <a class="site-footer__top" href="index.html">Vai al sito</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/properties.js?v=2" defer></script>
+  <script src="assets/js/carta.js?v=35" defer></script>
+</body>
+</html>

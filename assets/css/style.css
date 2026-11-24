@@ -337,6 +337,12 @@ figcaption { margin-top: 14px; font-size: 12px; letter-spacing: .06em; color: va
 .drink__notes { grid-column: 2 / -1; margin-top: 8px; font-size: 14px; color: var(--stone); max-width: 52ch; transition: color .5s var(--ease); }
 .drink:hover .drink__name, .drink.is-active .drink__name { color: var(--brass); transform: translateX(8px); }
 .drink:hover .drink__notes, .drink.is-active .drink__notes { color: var(--ivory); }
+/* group heading inside a category (e.g. "Gin profumato e floreale") */
+.drinks__group {
+  padding: 34px 0 12px; border-bottom: 1px solid var(--line);
+  font-size: 11px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--brass);
+}
+.drinks__group:first-child { padding-top: 6px; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; flex-basis: 100%; }
 .legend li { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--stone); }
@@ -677,6 +683,7 @@ img[data-foto]:not([src]) { visibility: hidden; }
   border-bottom: 1px solid var(--line);
 }
 .carta__nav::-webkit-scrollbar { display: none; }
+.carta__nav[hidden] { display: none; }
 .carta__nav a {
   flex: none; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px;
   font-size: 11px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--stone);

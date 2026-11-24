@@ -1,9 +1,10 @@
-/* Aqua — drinks menu built from data/menu.properties
-   Used by carta.html (the page linked by the QR code).
-   To change the menu, edit only the .properties file. */
+/* Aqua — menus built from .properties files
+   carta.html → data/menu.properties (drinks, the page linked by the QR code)
+   food.html  → data/food.properties (food)
+   The page names its file in data-source; to change a menu, edit only its .properties file. */
 (() => {
   const SOURCE = 'data/menu.properties';
-  const ICONS = 'assets/icons/bicchieri.svg';
+  const ICONS = 'assets/icons/bicchieri.svg?v=2';
 
   // The .properties parser lives in assets/js/properties.js
   const { parse } = window.AquaProps;
@@ -30,6 +31,7 @@
           prezzo: f('prezzo'),
           bottiglia: f('prezzo.bottiglia'),
           bicchiere: f('bicchiere').toLowerCase(),
+          gruppo: f('gruppo'),
         };
       }).filter((v) => v.nome);
       return {
@@ -47,12 +49,10 @@
     };
   };
 
-  let cache;
-  const load = () => {
-    if (!cache) {
-      cache = window.AquaProps.load(SOURCE).then(build);
-    }
-    return cache;
+  const cache = {};
+  const load = (source = SOURCE) => {
+    if (!cache[source]) cache[source] = window.AquaProps.load(source).then(build);
+    return cache[source];
   };
 
   /* ---------- HTML snippets ---------- */
@@ -84,6 +84,16 @@
       ${v.bottiglia ? `<span class="drink__bottle">Bottiglia ${esc(model.valuta)} ${esc(v.bottiglia)}</span>` : ''}
     </li>`;
 
+  // A category's items, with a small heading each time the group changes (e.g. the gin families)
+  const drinks = (model, voci) => {
+    let last = '';
+    return voci.map((v) => {
+      const head = v.gruppo && v.gruppo !== last ? `<li class="drinks__group">${esc(v.gruppo)}</li>` : '';
+      if (v.gruppo) last = v.gruppo;
+      return head + drink(model, v);
+    }).join('');
+  };
+
   const legend = (model) => {
     const used = [...new Set(model.categorie.flatMap((c) => c.voci.map((v) => v.bicchiere)).filter(Boolean))];
     return used.map((id) => `<li>${glass(model, id, 'legend__glass')}<span>${esc(model.bicchieri[id] || id)}</span></li>`).join('');
@@ -94,15 +104,20 @@
   if (page) {
     const nav = page.querySelector('[data-carta-nav]');
     const body = page.querySelector('[data-carta-body]');
-    load().then((model) => {
+    load(page.dataset.source || SOURCE).then((model) => {
+      // a menu with a single category needs no category bar
+      nav.hidden = model.categorie.length < 2;
       nav.innerHTML = model.categorie.map((c) => `<a href="#${esc(c.id)}">${esc(c.titolo)}</a>`).join('');
+      // with a single category the page title already says it all: no category heading
+      const single = model.categorie.length < 2;
       body.innerHTML = model.categorie.map((c) => `
         <section class="carta__cat" id="${esc(c.id)}" aria-labelledby="t-${esc(c.id)}">
-          <h2 class="carta__title" id="t-${esc(c.id)}">${esc(c.titolo)}</h2>
+          <h2 class="carta__title${single ? ' sr-only' : ''}" id="t-${esc(c.id)}">${esc(c.titolo)}</h2>
           ${c.descrizione ? `<p class="carta__desc">${esc(c.descrizione)}</p>` : ''}
-          <ul class="drinks${c.voci.some((v) => v.bicchiere) ? '' : ' drinks--plain'}">${c.voci.map((v) => drink(model, v)).join('')}</ul>
+          <ul class="drinks${c.voci.some((v) => v.bicchiere) ? '' : ' drinks--plain'}">${drinks(model, c.voci)}</ul>
         </section>`).join('');
-      page.querySelector('[data-carta-legend]').innerHTML = legend(model);
+      const legendEl = page.querySelector('[data-carta-legend]');
+      if (legendEl) legendEl.innerHTML = legend(model);
       page.classList.add('is-ready');
 
       // Active category in the sticky bar at the top
@@ -172,5 +187,5 @@
     }).catch(() => {});
   }
 
-  window.AquaCarta = { load, parse, build, drink, glass, legend, esc };
+  window.AquaCarta = { load, parse, build, drink, drinks, glass, legend, esc };
 })();
