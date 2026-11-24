@@ -8,7 +8,7 @@ Specchio digitale: la webcam riprende chi c'è davanti e lo schermo mostra il ri
 - **Avvio rapido (consigliato), con doppio clic:**
   - **Mac:** `smart-mirror/avvia-specchio-mac.command`. Se macOS dice che non può aprirlo: clic destro › Apri.
   - **Windows:** `smart-mirror/avvia-specchio-windows.bat`. Se compare "Windows ha protetto il PC": Ulteriori informazioni › Esegui comunque. Non serve installare Python: il server è dentro lo script.
-  - Il file avvia il server locale, apre Chrome (o Edge, se Chrome non c'è) a schermo intero sullo specchio e tiene acceso lo schermo. Chiudendo lo specchio (**Cmd+Q** su Mac, **Alt+F4** su Windows) il server si ferma da solo. Se lo specchio è già aperto, un secondo doppio clic non apre niente.
+  - Il file avvia il server locale, apre Chrome (o Edge, se Chrome non c'è) a schermo intero sullo specchio e tiene acceso lo schermo. Chiudendo lo specchio (**Cmd+Q** su Mac, **Alt+F4** su Windows) il server si ferma da solo. Mentre lo specchio è aperto, ogni 2 secondi controlla che il server risponda e, se si è fermato, lo riavvia. Se lo specchio è già aperto, un secondo doppio clic non apre un'altra finestra ma rimette in funzione il server (poi, se la pagina mostra un errore, Cmd+R su Mac o F5 su Windows).
   - Il browser usa un profilo separato ("Aqua Specchio"): permesso della videocamera e impostazioni restano memorizzati, e il Chrome di tutti i giorni non viene toccato.
   - Lo schermo intero si apre sullo **schermo principale**: rendere principale la TV (Mac: Impostazioni di Sistema › Monitor; Windows: Impostazioni › Sistema › Schermo › "Imposta come schermo principale").
   - Non chiudere la finestra del Terminale / prompt mentre lo specchio è acceso: chiuderla chiude anche lo specchio.

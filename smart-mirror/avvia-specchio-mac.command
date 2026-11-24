@@ -40,6 +40,7 @@ say "Browser: $APP"
 
 # ---------- Mirror already open? ----------
 OLD_PID="$(pgrep -o -f -- "$PROFILE_MATCH")"
+ATTACH_PID=""   # mirror window already open: keep its server alive instead of opening a new one
 if [ -n "$OLD_PID" ]; then
   if ps -o stat= -p "$OLD_PID" | grep -q T; then
     # a window left frozen by an older version of this script: close it and start again
@@ -49,9 +50,8 @@ if [ -n "$OLD_PID" ]; then
     for _ in $(seq 1 30); do pgrep -f -- "$PROFILE_MATCH" >/dev/null || break; sleep 0.2; done
     pkill -KILL -f -- "$PROFILE_MATCH" 2>/dev/null
   else
-    say "Lo specchio è già aperto. Per chiuderlo: Cmd+Q nella finestra dello specchio."
-    sleep 4
-    exit 0
+    ATTACH_PID="$OLD_PID"
+    say "Lo specchio è già aperto (processo $OLD_PID): controllo che il server sia attivo."
   fi
 fi
 
@@ -67,19 +67,25 @@ port_busy() { lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
 # ---------- Web server ----------
 SERVER_PID=""
+start_server() {
+  "$PYTHON" -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT" >/dev/null 2>&1 < /dev/null &
+  SERVER_PID=$!
+  for _ in $(seq 1 50); do is_mirror "$PORT" && return 0; sleep 0.2; done
+  kill "$SERVER_PID" 2>/dev/null
+  SERVER_PID=""
+  return 1
+}
 if is_mirror "$PORT"; then
-  # a server for the mirror is already running (for example started by hand): reuse it, never stop it
+  # a server for the mirror is already running (for example started by hand): reuse it;
+  # if it stops later, the watch below starts our own on the same port
   say "Server già attivo sulla porta $PORT: lo riuso."
 else
-  if port_busy "$PORT"; then
+  if port_busy "$PORT" && [ -z "$ATTACH_PID" ]; then
     # another program holds the port: use the next free one (mirror settings are saved per port)
     for p in 8081 8082 8083 8084 8085; do port_busy "$p" || { PORT=$p; break; }; done
     say "La porta 8080 è occupata da un altro programma: uso la $PORT (le impostazioni salvate dello specchio ripartono da zero)."
   fi
-  "$PYTHON" -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT" >/dev/null 2>&1 < /dev/null &
-  SERVER_PID=$!
-  for _ in $(seq 1 50); do is_mirror "$PORT" && break; sleep 0.2; done
-  is_mirror "$PORT" || fail "Il server non è partito sulla porta $PORT."
+  start_server || fail "Il server non è partito sulla porta $PORT."
   say "Server avviato in $(( $(date +%s) - START )) s: http://localhost:$PORT/$PAGE"
 fi
 
@@ -91,23 +97,43 @@ cleanup() {
 trap 'say "Terminale chiuso: chiudo lo specchio."; pkill -TERM -o -f -- "$PROFILE_MATCH"; cleanup; exit 0' INT TERM HUP
 
 # ---------- Browser, full screen ----------
-say "Apro il browser a schermo intero (la prima volta può volerci qualche secondo). Per uscire: Cmd+Q."
-say "Lo schermo intero si apre sullo schermo principale: rendi principale la TV in Impostazioni di Sistema › Monitor, oppure usa il Mac chiuso."
-# -n: a separate instance (own profile), -W: wait here until it is closed
-open -n -W -a "$APP" --args \
-  "$PROFILE_MATCH" \
-  --kiosk \
-  --no-first-run \
-  --no-default-browser-check \
-  --disable-features=Translate \
-  --autoplay-policy=no-user-gesture-required \
-  "http://localhost:$PORT/$PAGE" < /dev/null &
-OPEN_PID=$!
+if [ -n "$ATTACH_PID" ]; then
+  WATCH_PID="$ATTACH_PID"
+  say "Se lo specchio mostra «Impossibile raggiungere il sito», clicca sulla sua finestra e premi Cmd+R."
+else
+  say "Apro il browser a schermo intero (la prima volta può volerci qualche secondo). Per uscire: Cmd+Q."
+  say "Lo schermo intero si apre sullo schermo principale: rendi principale la TV in Impostazioni di Sistema › Monitor, oppure usa il Mac chiuso."
+  # -n: a separate instance (own profile), -W: "open" stays running until that instance is closed
+  open -n -W -a "$APP" --args \
+    "$PROFILE_MATCH" \
+    --kiosk \
+    --no-first-run \
+    --no-default-browser-check \
+    --disable-features=Translate \
+    --autoplay-policy=no-user-gesture-required \
+    "http://localhost:$PORT/$PAGE" < /dev/null &
+  WATCH_PID=$!
+fi
 
 # keep the display and the Mac awake while the mirror is open
-caffeinate -di -w "$OPEN_PID" < /dev/null &
+caffeinate -di -w "$WATCH_PID" < /dev/null &
 
-wait "$OPEN_PID"
+# watch: while the mirror is open, the server must keep answering (restart it if it stops)
+while kill -0 "$WATCH_PID" 2>/dev/null; do
+  sleep 2
+  kill -0 "$WATCH_PID" 2>/dev/null || break
+  if ! is_mirror "$PORT"; then
+    cleanup
+    if port_busy "$PORT"; then
+      say "Il server non risponde e la porta $PORT è occupata da un altro programma."
+    elif start_server; then
+      say "Il server si era fermato: riavviato sulla porta $PORT."
+    else
+      say "Il server si era fermato e non riparte: riprovo tra poco."
+    fi
+  fi
+done
+
 if [ -n "$SERVER_PID" ]; then say "Specchio chiuso. Server fermato."; else say "Specchio chiuso (il server avviato a mano resta attivo)."; fi
 cleanup
 say "Puoi chiudere questa finestra."

@@ -6,6 +6,7 @@
 # Works with Windows PowerShell 5.1 (built into Windows 10/11) and PowerShell 7.
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'   # no progress bar for the local server checks
 $Port = 8080
 if ($env:SPECCHIO_PORT) { $Port = [int]$env:SPECCHIO_PORT }
 $Page = 'smart-mirror/'
@@ -47,13 +48,13 @@ Say "Browser: $Browser"
 
 # ---------- Mirror already open? ----------
 $exe = [System.IO.Path]::GetFileName($Browser)
-$open = Get-CimInstance Win32_Process -Filter "Name='$exe'" -ErrorAction SilentlyContinue |
-  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($BrowserProfile) }
-if ($open) {
-  Say 'Lo specchio è già aperto. Per chiuderlo: Alt+F4 nella finestra dello specchio.'
-  Start-Sleep -Seconds 4
-  exit 0
+function Test-MirrorOpen {
+  [bool](Get-CimInstance Win32_Process -Filter "Name='$exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -and $_.CommandLine.Contains($BrowserProfile) })
 }
+# mirror window already open: keep its server alive instead of opening a new window
+$Attach = Test-MirrorOpen
+if ($Attach) { Say 'Lo specchio è già aperto: controllo che il server sia attivo.' }
 
 function Test-Mirror([int]$P) {
   try {
@@ -123,31 +124,45 @@ $ServerScript = {
   }
 }
 
-$Listener = $null
-$ServerPs = $null
+$script:Listener = $null
+$script:ServerPs = $null
+function Start-MirrorServer {
+  try {
+    # "localhost" prefixes do not need administrator rights
+    $l = New-Object System.Net.HttpListener
+    $l.Prefixes.Add("http://localhost:$Port/")
+    $l.Start()
+  } catch {
+    Say "Il server non parte sulla porta $Port ($($_.Exception.Message))."
+    return $false
+  }
+  $ps = [PowerShell]::Create()
+  [void]$ps.AddScript($ServerScript).AddArgument($l).AddArgument($Root)
+  [void]$ps.BeginInvoke()
+  $script:Listener = $l
+  $script:ServerPs = $ps
+  foreach ($i in 1..25) { if (Test-Mirror $Port) { return $true }; Start-Sleep -Milliseconds 200 }
+  Stop-MirrorServer
+  return $false
+}
+function Stop-MirrorServer {
+  if ($script:Listener) { try { $script:Listener.Stop(); $script:Listener.Close() } catch { } }
+  if ($script:ServerPs) { try { $script:ServerPs.Dispose() } catch { } }
+  $script:Listener = $null
+  $script:ServerPs = $null
+}
+
 if (Test-Mirror $Port) {
-  # a server for the mirror is already running (for example started by hand): reuse it, never stop it
+  # a server for the mirror is already running (for example started by hand): reuse it;
+  # if it stops later, the watch below starts our own on the same port
   Say "Server già attivo sulla porta ${Port}: lo riuso."
 } else {
-  if (Test-PortBusy $Port) {
+  if ((Test-PortBusy $Port) -and -not $Attach) {
     # another program holds the port: use the next free one (mirror settings are saved per port)
     foreach ($p in 8081..8085) { if (-not (Test-PortBusy $p)) { $Port = $p; break } }
     Say "La porta 8080 è occupata da un altro programma: uso la $Port (le impostazioni salvate dello specchio ripartono da zero)."
   }
-  try {
-    # "localhost" prefixes do not need administrator rights
-    $Listener = New-Object System.Net.HttpListener
-    $Listener.Prefixes.Add("http://localhost:$Port/")
-    $Listener.Start()
-  } catch {
-    Fail "Il server non è partito sulla porta $Port ($($_.Exception.Message))."
-  }
-  $ServerPs = [PowerShell]::Create()
-  [void]$ServerPs.AddScript($ServerScript).AddArgument($Listener).AddArgument($Root)
-  [void]$ServerPs.BeginInvoke()
-  $ok = $false
-  foreach ($i in 1..25) { if (Test-Mirror $Port) { $ok = $true; break }; Start-Sleep -Milliseconds 200 }
-  if (-not $ok) { Fail "Il server non risponde sulla porta $Port." }
+  if (-not (Start-MirrorServer)) { Fail "Il server non è partito sulla porta $Port." }
   Say ("Server avviato in {0:N1} s: http://localhost:{1}/{2}" -f ((Get-Date) - $Start).TotalSeconds, $Port, $Page)
 }
 
@@ -158,34 +173,49 @@ try {
 } catch { Say 'Impossibile impedire lo standby: controlla le opzioni risparmio energia.' }
 
 # ---------- Browser, full screen ----------
-Say 'Apro il browser a schermo intero (la prima volta può volerci qualche secondo). Per uscire: Alt+F4.'
-Say "Lo schermo intero si apre sullo schermo principale: imposta la TV come schermo principale (Impostazioni › Sistema › Schermo)."
-$browserArgs = @(
-  "--user-data-dir=`"$BrowserProfile`"",
-  '--kiosk',
-  '--no-first-run',
-  '--no-default-browser-check',
-  '--disable-features=Translate',
-  '--autoplay-policy=no-user-gesture-required',
-  "http://localhost:$Port/$Page"
-)
-try {
+$proc = $null
+if ($Attach) {
+  Say 'Se lo specchio mostra "Impossibile raggiungere il sito", clicca sulla sua finestra e premi F5.'
+} else {
+  Say 'Apro il browser a schermo intero (la prima volta può volerci qualche secondo). Per uscire: Alt+F4.'
+  Say "Lo schermo intero si apre sullo schermo principale: imposta la TV come schermo principale (Impostazioni › Sistema › Schermo)."
+  $browserArgs = @(
+    "--user-data-dir=`"$BrowserProfile`"",
+    '--kiosk',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-features=Translate',
+    '--autoplay-policy=no-user-gesture-required',
+    "http://localhost:$Port/$Page"
+  )
   $proc = Start-Process -FilePath $Browser -ArgumentList $browserArgs -PassThru
-  $proc.WaitForExit()
-  # Chrome sometimes hands the window to a second process: wait for every process of this profile
-  while (Get-CimInstance Win32_Process -Filter "Name='$exe'" -ErrorAction SilentlyContinue |
-         Where-Object { $_.CommandLine -and $_.CommandLine.Contains($BrowserProfile) }) {
-    Start-Sleep -Seconds 1
+}
+
+try {
+  # watch: while the mirror is open, the server must keep answering (restart it if it stops).
+  # The browser may hand its window to another process of the same profile, so every one is checked.
+  while (($proc -and -not $proc.HasExited) -or (Test-MirrorOpen)) {
+    Start-Sleep -Seconds 2
+    if (-not (Test-Mirror $Port)) {
+      $mine = [bool]$script:Listener
+      Stop-MirrorServer
+      if (Test-PortBusy $Port) {
+        Say "Il server non risponde e la porta $Port è occupata da un altro programma."
+      } elseif (Start-MirrorServer) {
+        Say "Il server si era fermato: riavviato sulla porta $Port."
+      } elseif ($mine) {
+        Say 'Il server si era fermato e non riparte: riprovo tra poco.'
+      }
+    }
   }
 } finally {
   try { [void][Aqua.Power]::SetThreadExecutionState([uint32]2147483648) } catch { }   # 0x80000000: back to normal
-  if ($Listener) {
-    try { $Listener.Stop(); $Listener.Close() } catch { }
+  if ($script:Listener) {
+    Stop-MirrorServer
     Say 'Specchio chiuso. Server fermato.'
   } else {
     Say 'Specchio chiuso (il server avviato a mano resta attivo).'
   }
-  if ($ServerPs) { try { $ServerPs.Dispose() } catch { } }
 }
 Say 'Puoi chiudere questa finestra.'
 Start-Sleep -Seconds 3
