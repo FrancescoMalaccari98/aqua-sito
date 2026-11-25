@@ -698,6 +698,13 @@ img[data-foto]:not([src]) { visibility: hidden; }
 .carta .drink { padding: 18px 0; }
 .carta .drink__name { font-size: clamp(22px, 5.4vw, 30px); }
 .carta .drink:hover .drink__name, .carta .drink.is-active .drink__name { transform: none; }
+/* Ingredients on one line whenever there is room. The size follows the width of the list:
+   (list width - icon column) × 0.023 is the largest size at which the longest recipe on the menu
+   (Nautilus, 94 characters) still fits on one line, minus a 6% margin for font rendering
+   differences. 16px on desktop and tablet; on phones it never goes below 14px, so the longest
+   recipes take two lines there instead of becoming too small to read. */
+.carta .drinks { container-type: inline-size; }
+.carta .drink__notes { max-width: none; font-size: clamp(14px, calc((100cqi - 46px) * 0.023), 16px); }
 .carta__info { margin-top: clamp(40px, 6vw, 64px); display: grid; gap: 18px; }
 .carta__info h2 { font-size: 11px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--brass); }
 .carta__info p { font-size: 14px; color: var(--mute); max-width: 62ch; }
