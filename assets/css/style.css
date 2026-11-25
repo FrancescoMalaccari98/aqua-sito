@@ -176,13 +176,16 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .mobile-menu {
   position: fixed; inset: 0; z-index: 45; background: var(--ink);
-  padding: 120px var(--gutter) 40px; display: flex; flex-direction: column; justify-content: space-between;
+  /* the list starts right under the 72px bar with the logo (the menu only exists up to 1024px) */
+  padding: 72px var(--gutter) 32px; display: flex; flex-direction: column; justify-content: space-between;
+  overflow-y: auto; /* very short screens (phone held sideways): scroll instead of cutting the info */
   opacity: 0; pointer-events: none; transition: opacity .5s var(--ease);
 }
 /* "hidden" must win over display:flex, otherwise the invisible overlay blocks clicks on the page */
 .mobile-menu[hidden] { display: none; }
 .mobile-menu.is-open { opacity: 1; pointer-events: auto; }
 .mobile-menu__list li { overflow: hidden; border-bottom: 1px solid var(--line); }
+.mobile-menu__list li:first-child { border-top: 1px solid var(--line); }
 .mobile-menu__list a {
   display: flex; align-items: baseline; gap: 18px; padding: 18px 0;
   font-family: var(--serif); font-size: clamp(34px, 9vw, 48px); font-weight: 300; line-height: 1.1;
@@ -194,9 +197,10 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .mobile-menu.is-open li:nth-child(3) a { transition-delay: .1s; }
 .mobile-menu.is-open li:nth-child(4) a { transition-delay: .15s; }
 .mobile-menu.is-open li:nth-child(5) a { transition-delay: .2s; }
-.mobile-menu__bottom { display: grid; gap: 18px; justify-items: start; }
-.mobile-menu__q { width: 40px; height: auto; aspect-ratio: 488 / 476; fill: var(--brass); }
-.mobile-menu__foot { font-size: 12px; letter-spacing: .14em; line-height: 1.8; text-transform: uppercase; color: var(--stone); }
+.mobile-menu.is-open li:nth-child(6) a { transition-delay: .25s; }
+.mobile-menu__bottom { display: grid; gap: 14px; justify-items: start; padding-top: 24px; }
+.mobile-menu__q { width: 32px; height: auto; aspect-ratio: 488 / 476; fill: var(--brass); }
+.mobile-menu__foot { font-size: 11px; letter-spacing: .14em; line-height: 1.7; text-transform: uppercase; color: var(--stone); }
 .mobile-menu__foot > span { display: block; }
 .mobile-menu__foot > span[hidden] { display: none; }
 
