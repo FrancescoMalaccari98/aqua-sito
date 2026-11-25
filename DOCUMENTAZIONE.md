@@ -44,7 +44,7 @@ Aggiornata al 25/11/2026.
 | File | Indirizzo | Contenuto |
 |---|---|---|
 | `index.html` | `/` | Home: copertina con video, conto alla rovescia per l'inaugurazione, Filosofia, Il rito, citazione, Il bar, Dove siamo (orari, contatti), menu di navigazione |
-| `carta.html` | `/carta.html` | **Carta dei drink** (pagina del QR code): Signature, Pre dinner, After dinner, Gin tonic, Caffetteria, Pasticceria, Salato, Beverage |
+| `carta.html` | `/carta.html` | **Carta dei drink** (pagina del QR code): Signature, Pre dinner, After dinner, Gin tonic, Alcol free, Champagne, Vini, Amari e distillati, Caffetteria, Pasticceria, Salato |
 | `food.html` | `/food.html` | **Menu food** |
 | `privacy.html` | `/privacy.html` | Informativa privacy e cookie policy |
 | `404.html` | qualsiasi indirizzo inesistente | Pagina "non trovata" con il ritorno al sito |
