@@ -120,33 +120,82 @@
       if (legendEl) legendEl.innerHTML = legend(model);
       page.classList.add('is-ready');
 
-      // Active category in the sticky bar at the top
+      /* ---------- Category bar and position in the menu ----------
+         The page position is the only source of truth: the highlighted category is the one on screen.
+         During a jump the target stays highlighted until the page has really stopped moving; then the
+         bar is read again from the real position (so it can never stay on a category that is not shown). */
       const links = [...nav.querySelectorAll('a')];
-      let jumping = 0; // while jumping to a category the bar does not update itself
-      const setActive = (id, smooth) => links.forEach((a) => {
-        const on = a.getAttribute('href') === `#${id}`;
-        a.classList.toggle('is-active', on);
-        // Centre the active category in the bar without moving the page
-        if (on) nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
-      });
-      const obs = new IntersectionObserver((entries) => {
-        if (jumping) return;
-        entries.forEach((en) => { if (en.isIntersecting) setActive(en.target.id, true); });
-      }, { rootMargin: '-30% 0px -60% 0px' });
+      const ids = model.categorie.map((c) => c.id);
+      const sections = [...body.querySelectorAll('.carta__cat')];
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const titleOf = (sec) => sec.querySelector('.carta__title') || sec;
+      let activeId = null;
+      let jumpTarget = null; // category being reached by a jump: the bar stays on it meanwhile
+      let pinned = null;     // last category reached by a jump, kept while its title is in view
+      let settleTimer = 0;
+      let jumpLimit = 0;
+
+      // Highlight a category and centre it in the bar (the bar scrolls smoothly, it never snaps)
+      const setActive = (id) => {
+        if (!id || id === activeId) return;
+        activeId = id;
+        links.forEach((a) => {
+          const on = a.getAttribute('href') === `#${id}`;
+          a.classList.toggle('is-active', on);
+          if (on) nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: reduce ? 'auto' : 'smooth' });
+        });
+      };
+      // The category on screen: the last one whose top has passed 35% of the screen
+      // (at the very bottom of the page, the last category, which can never get that high)
+      const indexAt = () => {
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) return sections.length - 1;
+        const limit = window.innerHeight * 0.35;
+        let idx = 0;
+        sections.forEach((sec, i) => { if (sec.getBoundingClientRect().top <= limit) idx = i; });
+        return idx;
+      };
+      const update = () => {
+        if (jumpTarget) return;
+        if (pinned) {
+          // near the bottom several short categories fit on one screen: keep the one just chosen
+          const top = titleOf(document.getElementById(pinned)).getBoundingClientRect().top;
+          if (top >= 0 && top <= window.innerHeight * 0.6) { setActive(pinned); return; }
+          pinned = null;
+        }
+        setActive(ids[indexAt()]);
+      };
+      // A jump is over when the page has not moved for a moment (or after 3 s in any case)
+      const settle = (wait) => {
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => {
+          clearTimeout(jumpLimit);
+          if (jumpTarget) pinned = jumpTarget;
+          jumpTarget = null;
+          update();
+        }, wait);
+      };
 
       // Jump to a category: its title stops just below the category bar
       const jumpTo = (id, smooth) => {
         const sec = document.getElementById(id);
         if (!sec) return;
-        const title = sec.querySelector('.carta__title') || sec;
         let y = 0;
-        for (let el = title; el; el = el.offsetParent) y += el.offsetTop;
-        setActive(id, false);
-        clearTimeout(jumping);
-        jumping = setTimeout(() => { jumping = 0; }, smooth ? 1200 : 100);
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        window.scrollTo({ top: Math.max(0, y - nav.offsetHeight - 22), behavior: smooth && !reduce ? 'smooth' : 'auto' });
+        for (let el = titleOf(sec); el; el = el.offsetParent) y += el.offsetTop;
+        const top = Math.max(0, y - nav.offsetHeight - 22);
+        jumpTarget = id;
+        setActive(id);
+        window.scrollTo({ top, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+        settle(400); // give the smooth scroll time to start
+        clearTimeout(jumpLimit);
+        jumpLimit = setTimeout(() => settle(0), 3000);
       };
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (jumpTarget) { settle(180); return; } // still moving: the jump is not over
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => { ticking = false; update(); });
+      }, { passive: true });
       nav.addEventListener('click', (e) => {
         const a = e.target.closest('a');
         if (!a) return;
@@ -155,60 +204,54 @@
         history.replaceState(null, '', `#${id}`);
         jumpTo(id, true);
       });
-      body.querySelectorAll('.carta__cat').forEach((s) => obs.observe(s));
-      // At the bottom of the page the last category never reaches mid-screen, so activate it here
-      window.addEventListener('scroll', () => {
-        if (window.innerHeight + window.scrollY < document.documentElement.scrollHeight - 4) return;
-        const last = links[links.length - 1];
-        if (last && !last.classList.contains('is-active')) {
-          if (jumping) return;
-          links.forEach((a) => a.classList.toggle('is-active', a === last));
-          nav.scrollTo({ left: nav.scrollWidth, behavior: 'smooth' });
-        }
-      }, { passive: true });
 
       /* Next / previous category without the bar: swipe left or right on the menu (phones),
          or the ← → keys (computers). Swiping left goes forward (Pre dinner → After dinner),
          as when browsing photos; swiping right goes back. */
-      const ids = model.categorie.map((c) => c.id);
-      const currentIndex = () => {
-        const active = links.findIndex((a) => a.classList.contains('is-active'));
-        if (active >= 0) return active;
-        // nothing highlighted yet: the last category whose title has passed 40% of the screen,
-        // or the first one at the top of the page (it is the one already in view)
-        let idx = 0;
-        body.querySelectorAll('.carta__cat').forEach((s, i) => { if (s.getBoundingClientRect().top < window.innerHeight * 0.4) idx = i; });
-        return idx;
-      };
       const step = (dir) => {
         if (ids.length < 2) return;
-        const from = currentIndex();
-        const to = Math.min(ids.length - 1, Math.max(0, from + dir));
-        if (to === from) return;
+        // start from the category being reached (fast repeated swipes), else from the one on screen
+        const current = jumpTarget || pinned || ids[indexAt()];
+        const to = Math.min(ids.length - 1, Math.max(0, ids.indexOf(current) + dir));
+        if (ids[to] === current) return;
         history.replaceState(null, '', `#${ids[to]}`);
         jumpTo(ids[to], true);
       };
-      const SWIPE_MIN = 60;  // px of horizontal movement
-      const EDGE = 24;       // px from the screen edges, left to the browser's own back/forward gestures
-      let touch = null;
+      const EDGE = 24;      // px from the screen edges, left to the browser's own back/forward gestures
+      const LOCK = 10;      // px of movement before deciding whether the gesture is sideways or vertical
+      const SWIPE_MIN = 50; // px of sideways movement to change category
+      let gesture = null;
       page.addEventListener('touchstart', (e) => {
         const t = e.touches[0];
+        const zoomed = window.visualViewport && window.visualViewport.scale > 1.01; // zoomed in: sideways pans move the view
         // one finger, not on the category bar (it scrolls sideways by itself), not on the screen edges
-        touch = e.touches.length === 1 && !e.target.closest('[data-carta-nav]')
+        gesture = e.touches.length === 1 && !zoomed && !e.target.closest('[data-carta-nav]')
           && t.clientX > EDGE && t.clientX < window.innerWidth - EDGE
-          ? { x: t.clientX, y: t.clientY, time: performance.now() } : null;
+          ? { x: t.clientX, y: t.clientY, axis: '' } : null;
       }, { passive: true });
+      page.addEventListener('touchmove', (e) => {
+        if (!gesture) return;
+        if (e.touches.length > 1) { gesture = null; return; } // a second finger: pinch zoom
+        const t = e.touches[0];
+        const dx = t.clientX - gesture.x;
+        const dy = t.clientY - gesture.y;
+        if (!gesture.axis) {
+          if (Math.abs(dx) < LOCK && Math.abs(dy) < LOCK) return;
+          gesture.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+        }
+        // A sideways gesture must not scroll the page: on iPhone a small vertical drift would start a
+        // scroll that keeps going (momentum) after the finger lifts and cancels the jump to the category.
+        // Vertical gestures are left alone and scroll the page as usual.
+        if (gesture.axis === 'x' && e.cancelable) e.preventDefault();
+      }, { passive: false });
       page.addEventListener('touchend', (e) => {
-        if (!touch) return;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - touch.x;
-        const dy = t.clientY - touch.y;
-        const quick = performance.now() - touch.time < 700;
-        touch = null;
-        // a clear sideways gesture: long enough and much more horizontal than vertical (not a page scroll)
-        if (quick && Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+        if (!gesture) return;
+        const dx = e.changedTouches[0].clientX - gesture.x;
+        const sideways = gesture.axis === 'x';
+        gesture = null;
+        if (sideways && Math.abs(dx) >= SWIPE_MIN) step(dx < 0 ? 1 : -1);
       }, { passive: true });
-      page.addEventListener('touchcancel', () => { touch = null; }, { passive: true });
+      page.addEventListener('touchcancel', () => { gesture = null; }, { passive: true });
       document.addEventListener('keydown', (e) => {
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         if (e.target.closest('input, textarea, select, [contenteditable], [data-carta-nav]')) return;
@@ -217,6 +260,7 @@
       });
 
       if (location.hash) jumpTo(decodeURIComponent(location.hash.slice(1)), false);
+      else update();
     }).catch(() => {
       body.innerHTML = '<p class="carta__error">Non riusciamo a caricare la carta in questo momento. Chiedete al bancone: ve la raccontiamo noi.</p>';
       page.classList.add('is-ready');

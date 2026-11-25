@@ -129,6 +129,14 @@ Per passare da una categoria all'altra, oltre alle schede:
   browser) vengono ignorati;
 - **sul computer** si usano i tasti freccia **→** e **←**.
 
+Le stesse categorie compaiono anche nel **menu del sito**, sotto "La carta" (lette da
+`data/menu.properties`, quindi sempre allineate alla carta): sul telefono si aprono toccando "La carta",
+sul computer passando sopra "La carta" nell'intestazione. Ogni voce porta direttamente alla sua sezione.
+
+Il pulsante **"Il sito →"** in alto nella carta e nel menu food porta a `index.html#menu`: la home si
+apre direttamente con il menu di navigazione aperto (sul telefono; su computer il menu è già sempre
+visibile in alto).
+
 La riga degli ingredienti si adatta alla larghezza: 16 px su computer (su una riga), almeno 14 px su
 telefono (le ricette lunghe vanno a capo).
 

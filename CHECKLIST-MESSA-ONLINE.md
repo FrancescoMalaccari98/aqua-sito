@@ -28,7 +28,8 @@ Come si pubblica, passo per passo: [DOCUMENTAZIONE.md](DOCUMENTAZIONE.md), capit
 | 1.5 | **Email di contatto** | Home › Dove siamo (oggi `ciao@aqua.bar`, inesistente) | BLOCCANTE |
 | 1.6 | **Profilo Instagram** (ed eventuali Facebook/TikTok) | Home › Dove siamo › Seguiteci (oggi porta alla home di Instagram) | BLOCCANTE |
 | 1.7 | **Carta — Signature**: prezzi di tutte e 8; ingredienti e bicchiere di **Sofia**, **Rolex BR1**, **Old Man** | `data/menu.properties` | BLOCCANTE |
-| 1.8 | **Carta — Birre e vini**: voci, prezzo al calice e alla bottiglia (la categoria è pronta ma nascosta finché è vuota) | `data/menu.properties` | BLOCCANTE |
+| 1.8 | **Carta — Vini: vendita al calice**. I prezzi inseriti il 25/11 sono alla bottiglia (confermato dal locale). Da sapere: si venderà anche al calice? Se sì, a che prezzo (il sito mostra calice e bottiglia insieme). Birre: la categoria "Birre e vini" resta nascosta finché è vuota | `data/menu.properties` | DA CONFERMARE |
+| 1.8b | **Carta — Champagne: prezzi mancanti** di Dom Pérignon Rosé, Armand de Brignac, Laurent-Perrier Blanc de Blancs, Moët & Chandon Ice Impérial. Confermare che "Dom Pérignon Rosé" della lista quantità e "Dom Pérignon Vintage 2013 Luminous" della carta dei vini siano due bottiglie diverse, e che i Mandois (solo nella carta dei vini) siano disponibili | `data/menu.properties` | BLOCCANTE |
 | 1.9 | **Carta — Campari Soda**: confermare (nella lista originale era segnato con "?") | `data/menu.properties`, Beverage | BLOCCANTE |
 | 1.10 | **Testi della home da confermare** (scritti come esempio, sono affermazioni sul locale): "Miscelazione d'autore" e "L'arte del bere lentamente"; Filosofia: "Un bancone, poche sedute, nessuna fretta" e "produttori vicini, sciroppi fatti in casa, ghiaccio limpido tagliato a mano"; i numeri "**24** coperti, non uno di più" e "**0** preparati industriali"; didascalia "Old Fashioned affumicato al legno di ciliegio"; Il rito: "blocchi congelati per quarantotto ore", "pesato al grammo", "una guarnizione sola"; Il bar: "Luce bassa, ottone, legno scuro"; descrizione per Google e WhatsApp | `index.html` | BLOCCANTE |
 | 1.11 | **Numero di signature in home**: dice "**5** signature della casa", ma ora la carta ne ha **8**. Confermare il numero giusto | `index.html`, Filosofia | BLOCCANTE |
@@ -83,7 +84,10 @@ Come si pubblica, passo per passo: [DOCUMENTAZIONE.md](DOCUMENTAZIONE.md), capit
 
 ## 5. Già fatto
 
-- Carta reale del locale (Signature, Pre dinner, After dinner a 8 €, Gin tonic, Caffetteria, Pasticceria, Salato, Beverage) con bicchieri; ricette di Passion Aqua, Malessere, Ladies & Gentlemen, Scriptorium Sunset, Nautilus
+- Carta reale del locale (Signature, Pre dinner, After dinner, Gin tonic, Champagne, Vini, Caffetteria, Pasticceria, Salato, Beverage) con bicchieri; ricette di Passion Aqua, Malessere, Ladies & Gentlemen, Scriptorium Sunset, Nautilus
+- Prezzi dei cocktail ricontrollati sul listino del 25/11: tutti a 8 € tranne Boulevardier, Margarita, Martini Cocktail e Dirty Martini a 10 €, Sour a 9 €; gin tonic 8 / 10 / 12 € (base / premium / premium +). Vodka Tini tolto dalla carta (non è nel listino)
+- Carta dei vini (25/11): sezione "Vini" con Bollicine, Bianchi, Rosati e Rossi, prezzi alla bottiglia (confermato); nomi confermati (Arsicci Verdicchio dei Castelli di Jesi Superiore, Château La Forchetière); gli champagne della carta dei vini sono nella sezione Champagne con i loro prezzi
+- Menu di navigazione: "La carta" mostra le sue sezioni (sul telefono si aprono toccandola, sul computer passandoci sopra); il pulsante "Il sito" di carta e menu food apre il menu del sito
 - Menu food (9 piatti a 3 € a porzione) con pagina e voce di menu dedicate
 - Pagina 404, icone per la schermata Home del telefono, dati strutturati per Google, robots.txt e sitemap, anteprime social di home, carta e menu food
 - Privacy senza cookie e senza servizi esterni (nessun banner necessario)

@@ -214,6 +214,21 @@
   /* ---------- Mobile menu ---------- */
   const burger = $('.burger');
   const mobileMenu = $('#mobile-menu');
+  const cartaToggle = $('[data-carta-toggle]');
+  const cartaSub = cartaToggle && document.getElementById(cartaToggle.getAttribute('aria-controls'));
+  const setCartaOpen = (open) => {
+    if (!cartaSub) return;
+    cartaToggle.setAttribute('aria-expanded', String(open));
+    cartaToggle.parentElement.classList.toggle('is-expanded', open);
+    cartaSub.hidden = !open;
+  };
+  if (cartaToggle) {
+    cartaToggle.addEventListener('click', (e) => {
+      if (!cartaSub || !cartaSub.children.length) return; // categories not loaded: plain link to the menu
+      e.preventDefault();
+      setCartaOpen(cartaSub.hidden);
+    });
+  }
   const setMenu = (open) => {
     burger.setAttribute('aria-expanded', String(open));
     burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu');
@@ -226,15 +241,45 @@
       setTimeout(() => $('a', mobileMenu).focus({ preventScroll: true }), 350);
     } else {
       mobileMenu.classList.remove('is-open');
+      setCartaOpen(false);
       setTimeout(() => { if (!mobileMenu.classList.contains('is-open')) mobileMenu.hidden = true; }, 500);
     }
   };
   burger.addEventListener('click', () => setMenu(burger.getAttribute('aria-expanded') !== 'true'));
-  $$('a', mobileMenu).forEach((a) => a.addEventListener('click', () => setMenu(false)));
+  // Any link closes the menu, except "La carta", which opens its categories (see below)
+  mobileMenu.addEventListener('click', (e) => {
+    const a = e.target.closest('a');
+    if (a && !a.matches('[data-carta-toggle]')) setMenu(false);
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('menu-open')) { setMenu(false); burger.focus(); }
   });
   window.matchMedia('(min-width: 1025px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); });
+  // Coming from the menus' "Il sito" link (index.html#menu): open the navigation menu right away.
+  // On wide screens the navigation is always visible in the header, so nothing to open.
+  if (root.classList.contains('open-menu') && window.matchMedia('(max-width: 1024px)').matches) setMenu(true);
+
+  /* ---------- "La carta" categories in the menus ----------
+     Read from data/menu.properties, so they always match the menu (only categories with items).
+     Phone menu: tapping "La carta" opens or closes the list, which starts with "Tutta la carta".
+     Header (computers): the list appears under "La carta" on hover or keyboard focus. */
+  const escHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const cartaLists = $$('[data-carta-links]');
+  if (cartaLists.length) {
+    window.AquaProps.load('data/menu.properties').then((p) => {
+      const keys = [...p.keys()];
+      const cats = (p.get('categorie') || '').split(',').map((c) => c.trim()).filter(Boolean)
+        .filter((id) => keys.some((k) => k.startsWith(`${id}.`) && k.endsWith('.nome')))
+        .map((id) => ({ id, titolo: p.get(`categoria.${id}.titolo`) || id }));
+      if (!cats.length) return;
+      // --i staggers the entrance of each item in the phone menu
+      const items = cats.map((c, i) => `<li style="--i:${i}"><a href="carta.html#${encodeURIComponent(c.id)}">${escHtml(c.titolo)}</a></li>`).join('');
+      cartaLists.forEach((ul) => {
+        ul.innerHTML = items + (ul.dataset.cartaLinks === 'tutta'
+          ? `<li class="mobile-menu__all" style="--i:${cats.length}"><a href="carta.html">Tutta la carta <span aria-hidden="true">→</span></a></li>` : '');
+      });
+    }).catch(() => {});
+  }
 
   /* ---------- Active navigation item ---------- */
   const navLinks = $$('.nav__list a');

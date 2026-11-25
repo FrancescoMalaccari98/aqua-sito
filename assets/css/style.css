@@ -159,6 +159,20 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .nav__list a:hover, .nav__list a.is-active { color: var(--ivory); }
 .nav__list a.is-active::after { transform: translateX(-50%) scale(1); }
+/* "La carta" in the header: its categories appear underneath on hover or keyboard focus */
+.nav__item--sub { position: relative; }
+.nav__sub {
+  position: absolute; top: calc(100% + 10px); left: 50%; z-index: 5; min-width: 210px; padding: 10px 0;
+  background: rgba(14, 21, 20, .96); border: 1px solid var(--line); box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+  opacity: 0; visibility: hidden; transform: translate(-50%, 6px);
+  transition: opacity .25s var(--ease), transform .25s var(--ease), visibility .25s;
+}
+/* invisible bridge, so the list stays open while the pointer moves down to it */
+.nav__sub::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 12px; }
+.nav__sub:empty { display: none; }
+.nav__item--sub:hover .nav__sub, .nav__item--sub:focus-within .nav__sub { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+.nav__sub a { display: block; padding: 9px 22px; white-space: nowrap; letter-spacing: .2em; }
+.nav__sub a::after { display: none; }
 .site-header__cta { min-height: 40px; padding: 0 22px; }
 
 .burger {
@@ -198,6 +212,41 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .mobile-menu.is-open li:nth-child(4) a { transition-delay: .15s; }
 .mobile-menu.is-open li:nth-child(5) a { transition-delay: .2s; }
 .mobile-menu.is-open li:nth-child(6) a { transition-delay: .25s; }
+/* "La carta" in the phone menu: a chevron, and its categories as small pills under it */
+.mobile-menu__more {
+  flex: none; align-self: center; margin-left: auto; width: 10px; height: 10px;
+  border-right: 1.5px solid var(--brass); border-bottom: 1.5px solid var(--brass);
+  transform: translateY(-3px) rotate(45deg); transition: transform .35s var(--ease);
+}
+.mobile-menu__carta.is-expanded .mobile-menu__more { transform: translateY(3px) rotate(-135deg); }
+/* the categories: a numbered list in the site's serif, two columns, along a thin brass line */
+.mobile-menu__sub {
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; counter-reset: carta;
+  margin: -6px 0 0 40px; padding: 2px 0 2px 20px; border-left: 1px solid var(--line-brass);
+}
+.mobile-menu__sub[hidden] { display: none; }
+.mobile-menu__carta.is-expanded { padding-bottom: 24px; }
+.mobile-menu__list .mobile-menu__sub li { border: 0; overflow: visible; animation: subIn .55s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+@keyframes subIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.mobile-menu__list .mobile-menu__sub a {
+  display: flex; align-items: baseline; gap: 10px; padding: 8px 0; transform: none;
+  font-family: var(--serif); font-size: clamp(18px, 5vw, 22px); font-weight: 300; line-height: 1.15; color: var(--stone);
+  transition: color .3s var(--ease);
+}
+.mobile-menu__sub li:not(.mobile-menu__all) a::before {
+  counter-increment: carta; content: counter(carta, decimal-leading-zero);
+  flex: none; font-family: var(--sans); font-size: 10px; font-weight: 500; letter-spacing: .12em; color: var(--brass);
+}
+.mobile-menu__list .mobile-menu__sub a:hover, .mobile-menu__list .mobile-menu__sub a:focus-visible { color: var(--ivory); }
+/* "Tutta la carta": on its own line, like the site's text links */
+.mobile-menu__list .mobile-menu__sub .mobile-menu__all { grid-column: 1 / -1; margin-top: 10px; }
+.mobile-menu__list .mobile-menu__sub .mobile-menu__all a {
+  display: inline-flex; gap: 10px; padding: 6px 0;
+  font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--brass);
+}
+/* no inherited entrance delays on the categories (they belong to the main items) */
+.mobile-menu.is-open .mobile-menu__sub li a { transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .mobile-menu__list .mobile-menu__sub li { animation: none; } }
 .mobile-menu__bottom { display: grid; gap: 14px; justify-items: start; padding-top: 24px; }
 .mobile-menu__q { width: 32px; height: auto; aspect-ratio: 488 / 476; fill: var(--brass); }
 .mobile-menu__foot { font-size: 11px; letter-spacing: .14em; line-height: 1.7; text-transform: uppercase; color: var(--stone); }
