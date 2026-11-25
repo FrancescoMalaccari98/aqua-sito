@@ -49,21 +49,24 @@
   </script>
   <script>
     document.documentElement.classList.add('js');
-    // index.html#menu (the "Il sito" link of the menus) opens the site straight on its navigation menu, without the intro
-    var openMenu = location.hash === '#menu';
+    // index.html#menu opens the site straight on its navigation menu, without the intro;
+    // index.html#rito and the like (links of the menu on the carta) open it on that section, without the intro
+    var hash = location.hash.slice(1);
+    var openMenu = hash === 'menu';
     if (openMenu) document.documentElement.classList.add('open-menu');
+    if (/^(filosofia|rito|bar|contatti)$/.test(hash)) window.aquaSection = hash;
     // The site always opens at the top, even if the address still contains a #section
     try {
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     } catch (e) {}
-    try { if (!openMenu && !sessionStorage.getItem('aqua-intro')) document.documentElement.classList.add('has-intro'); } catch (e) {}
+    try { if (!openMenu && !window.aquaSection && !sessionStorage.getItem('aqua-intro')) document.documentElement.classList.add('has-intro'); } catch (e) {}
     setTimeout(function () { if (!window.aquaReady) document.documentElement.classList.remove('js', 'has-intro'); }, 4000);
   </script>
   <link rel="preload" href="assets/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/fonts.css?v=27">
-  <link rel="stylesheet" href="assets/css/style.css?v=49">
+  <link rel="stylesheet" href="assets/css/style.css?v=50">
 </head>
 <body>
   <a class="skip" href="#main">Vai al contenuto</a>
@@ -99,7 +102,7 @@
 
       <a class="btn btn--ghost site-header__cta" href="#contatti">Contatti</a>
 
-      <button class="burger" aria-expanded="false" aria-controls="mobile-menu" aria-label="Apri il menu">
+      <button class="burger" data-menu-toggle aria-expanded="false" aria-controls="mobile-menu" aria-label="Apri il menu">
         <span></span><span></span>
       </button>
     </div>
@@ -351,6 +354,7 @@
 
   <div class="grain" aria-hidden="true"></div>
   <script src="assets/js/properties.js?v=2" defer></script>
-  <script src="assets/js/main.js?v=40" defer></script>
+  <script src="assets/js/menu.js?v=1" defer></script>
+  <script src="assets/js/main.js?v=41" defer></script>
 </body>
 </html>

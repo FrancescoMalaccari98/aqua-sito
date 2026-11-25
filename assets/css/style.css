@@ -212,6 +212,23 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .mobile-menu.is-open li:nth-child(4) a { transition-delay: .15s; }
 .mobile-menu.is-open li:nth-child(5) a { transition-delay: .2s; }
 .mobile-menu.is-open li:nth-child(6) a { transition-delay: .25s; }
+/* The same menu on the carta and the food menu: opened by "Il sito", on every screen size.
+   Its own top bar (logo + close) sits exactly where the page's header is. */
+.mobile-menu--pages { padding-top: 84px; }
+.mobile-menu__top {
+  position: absolute; inset: 0 0 auto; height: 84px; margin-inline: auto;
+  width: 100%; max-width: var(--wrap); padding-inline: var(--gutter);
+  display: flex; align-items: center; gap: 24px;
+}
+.mobile-menu__top .burger { display: block; }
+@media (min-width: 1025px) {
+  .mobile-menu--pages > nav, .mobile-menu--pages .mobile-menu__bottom { width: 100%; max-width: 640px; margin-inline: auto; }
+  .mobile-menu--pages { justify-content: flex-start; gap: 48px; }
+}
+/* "Il sito" in the header of the carta and the food menu: a button with two small lines (the menu) */
+.site-menu-btn { background: none; border: 0; padding-inline: 0; color: inherit; font-family: inherit; cursor: pointer; }
+.site-menu-btn__ico { width: 16px; height: 7px; border-block: 1px solid currentColor; }
+.link-arrow:hover .site-menu-btn__ico { transform: none; }
 /* "La carta" in the phone menu: a chevron, and its categories as small pills under it */
 .mobile-menu__more {
   flex: none; align-self: center; margin-left: auto; width: 10px; height: 10px;

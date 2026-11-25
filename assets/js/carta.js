@@ -254,9 +254,17 @@
       page.addEventListener('touchcancel', () => { gesture = null; }, { passive: true });
       document.addEventListener('keydown', (e) => {
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        if (document.body.classList.contains('menu-open')) return; // the site's menu is open on top
         if (e.target.closest('input, textarea, select, [contenteditable], [data-carta-nav]')) return;
         if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
         else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+      });
+
+      // A category chosen in the site's menu while already on this page (see assets/js/menu.js)
+      window.addEventListener('aqua:section', (e) => {
+        if (!ids.includes(e.detail)) return;
+        history.replaceState(null, '', `#${e.detail}`);
+        jumpTo(e.detail, true);
       });
 
       if (location.hash) jumpTo(decodeURIComponent(location.hash.slice(1)), false);

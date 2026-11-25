@@ -158,14 +158,7 @@
   /* ---------- In-page links: scroll to the section without writing #… in the address ----------
      So reloading or reopening the site always starts from the top. */
   window.scrollTo({ top: 0, behavior: 'instant' });
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href^="#"]');
-    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    const id = a.getAttribute('href').slice(1);
-    const target = id === 'top' || !id ? null : document.getElementById(id);
-    if (id && id !== 'top' && !target) return;
-    e.preventDefault();
-    const behavior = reduceMotion ? 'auto' : 'smooth';
+  const goToSection = (target, behavior) => {
     if (!target) { window.scrollTo({ top: 0, behavior }); return; }
     // Align the section label ("01 — Filosofia"), not the section edge with its padding;
     // the header hides when scrolling down and comes back when scrolling up
@@ -180,6 +173,15 @@
     // Also move focus (keyboard and screen readers) without a second jump
     if (!target.matches('a, button, input, select, textarea, [tabindex]')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
+  };
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const id = a.getAttribute('href').slice(1);
+    const target = id === 'top' || !id ? null : document.getElementById(id);
+    if (id && id !== 'top' && !target) return;
+    e.preventDefault();
+    goToSection(target, reduceMotion ? 'auto' : 'smooth');
   });
 
   /* ---------- Header: background and show/hide on scroll ---------- */
@@ -211,74 +213,18 @@
   }
   onScroll();
 
-  /* ---------- Mobile menu ---------- */
-  const burger = $('.burger');
-  const mobileMenu = $('#mobile-menu');
-  const cartaToggle = $('[data-carta-toggle]');
-  const cartaSub = cartaToggle && document.getElementById(cartaToggle.getAttribute('aria-controls'));
-  const setCartaOpen = (open) => {
-    if (!cartaSub) return;
-    cartaToggle.setAttribute('aria-expanded', String(open));
-    cartaToggle.parentElement.classList.toggle('is-expanded', open);
-    cartaSub.hidden = !open;
-  };
-  if (cartaToggle) {
-    cartaToggle.addEventListener('click', (e) => {
-      if (!cartaSub || !cartaSub.children.length) return; // categories not loaded: plain link to the menu
-      e.preventDefault();
-      setCartaOpen(cartaSub.hidden);
-    });
-  }
-  const setMenu = (open) => {
-    burger.setAttribute('aria-expanded', String(open));
-    burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu');
-    document.body.classList.toggle('menu-open', open);
-    document.body.style.overflow = open ? 'hidden' : '';
-    if (open) {
-      mobileMenu.hidden = false;
-      header.classList.remove('is-hidden');
-      requestAnimationFrame(() => requestAnimationFrame(() => mobileMenu.classList.add('is-open')));
-      setTimeout(() => $('a', mobileMenu).focus({ preventScroll: true }), 350);
-    } else {
-      mobileMenu.classList.remove('is-open');
-      setCartaOpen(false);
-      setTimeout(() => { if (!mobileMenu.classList.contains('is-open')) mobileMenu.hidden = true; }, 500);
-    }
-  };
-  burger.addEventListener('click', () => setMenu(burger.getAttribute('aria-expanded') !== 'true'));
-  // Any link closes the menu, except "La carta", which opens its categories (see below)
-  mobileMenu.addEventListener('click', (e) => {
-    const a = e.target.closest('a');
-    if (a && !a.matches('[data-carta-toggle]')) setMenu(false);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.body.classList.contains('menu-open')) { setMenu(false); burger.focus(); }
-  });
-  window.matchMedia('(min-width: 1025px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); });
-  // Coming from the menus' "Il sito" link (index.html#menu): open the navigation menu right away.
-  // On wide screens the navigation is always visible in the header, so nothing to open.
-  if (root.classList.contains('open-menu') && window.matchMedia('(max-width: 1024px)').matches) setMenu(true);
-
-  /* ---------- "La carta" categories in the menus ----------
-     Read from data/menu.properties, so they always match the menu (only categories with items).
-     Phone menu: tapping "La carta" opens or closes the list, which starts with "Tutta la carta".
-     Header (computers): the list appears under "La carta" on hover or keyboard focus. */
-  const escHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const cartaLists = $$('[data-carta-links]');
-  if (cartaLists.length) {
-    window.AquaProps.load('data/menu.properties').then((p) => {
-      const keys = [...p.keys()];
-      const cats = (p.get('categorie') || '').split(',').map((c) => c.trim()).filter(Boolean)
-        .filter((id) => keys.some((k) => k.startsWith(`${id}.`) && k.endsWith('.nome')))
-        .map((id) => ({ id, titolo: p.get(`categoria.${id}.titolo`) || id }));
-      if (!cats.length) return;
-      // --i staggers the entrance of each item in the phone menu
-      const items = cats.map((c, i) => `<li style="--i:${i}"><a href="carta.html#${encodeURIComponent(c.id)}">${escHtml(c.titolo)}</a></li>`).join('');
-      cartaLists.forEach((ul) => {
-        ul.innerHTML = items + (ul.dataset.cartaLinks === 'tutta'
-          ? `<li class="mobile-menu__all" style="--i:${cats.length}"><a href="carta.html">Tutta la carta <span aria-hidden="true">→</span></a></li>` : '');
-      });
-    }).catch(() => {});
+  /* ---------- Arriving from another page ----------
+     The menu itself is in assets/js/menu.js (shared with the carta and the food menu).
+     index.html#menu opens it right away (on wide screens the navigation is already in the header);
+     index.html#rito and the like (links of the menu on the carta) open the home on that section. */
+  if (root.classList.contains('open-menu') && window.AquaMenu && window.matchMedia('(max-width: 1024px)').matches) window.AquaMenu.open();
+  const arrival = window.aquaSection && document.getElementById(window.aquaSection);
+  if (arrival) {
+    goToSection(arrival, 'instant');
+    // photos and fonts arriving later can move the section a little: settle once more,
+    // unless the visitor has already scrolled
+    const yAfter = window.scrollY;
+    window.addEventListener('load', () => { if (Math.abs(window.scrollY - yAfter) < 4) goToSection(arrival, 'instant'); }, { once: true });
   }
 
   /* ---------- Active navigation item ---------- */

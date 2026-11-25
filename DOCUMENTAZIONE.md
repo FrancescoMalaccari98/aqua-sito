@@ -83,7 +83,8 @@ aqua-sito/
     │   ├── style.css       Tutto lo stile del sito
     │   └── fonts.css       Dichiarazione dei font
     ├── js/
-    │   ├── main.js         Funzioni della home (intro, video, menu, orari, conto alla rovescia…)
+    │   ├── main.js         Funzioni della home (intro, video, orari, conto alla rovescia…)
+    │   ├── menu.js         Il menu di navigazione (home, carta e menu food)
     │   ├── carta.js        Costruisce carta e menu food dai file .properties
     │   └── properties.js   Legge i file .properties
     ├── fonts/              Cormorant Garamond e Manrope (.woff2), serviti dal sito
@@ -133,9 +134,14 @@ Le stesse categorie compaiono anche nel **menu del sito**, sotto "La carta" (let
 `data/menu.properties`, quindi sempre allineate alla carta): sul telefono si aprono toccando "La carta",
 sul computer passando sopra "La carta" nell'intestazione. Ogni voce porta direttamente alla sua sezione.
 
-Il pulsante **"Il sito →"** in alto nella carta e nel menu food porta a `index.html#menu`: la home si
-apre direttamente con il menu di navigazione aperto (sul telefono; su computer il menu è già sempre
-visibile in alto).
+Il pulsante **"Il sito"** in alto nella carta e nel menu food apre il **menu di navigazione del sito
+sopra la pagina, senza lasciarla** (su telefono e su computer); la ✕ in alto lo richiude. Da lì:
+le sezioni della carta portano alla sezione (se si è già nella carta, senza ricaricare la pagina);
+Filosofia, Il rito, Il bar e Dove siamo aprono la home direttamente su quella sezione
+(`index.html#rito` ecc., senza l'intro). Il menu delle due pagine è scritto in `carta.html` e
+`food.html`: se cambiano le voci del menu della home, vanno cambiate anche lì.
+Il menu (apertura, chiusura, sezioni della carta) è gestito da `assets/js/menu.js`, lo stesso file per
+home, carta e menu food. `index.html#menu` apre ancora la home con il menu aperto.
 
 La riga degli ingredienti si adatta alla larghezza: 16 px su computer (su una riga), almeno 14 px su
 telefono (le ricette lunghe vanno a capo).
@@ -149,7 +155,7 @@ telefono (le ricette lunghe vanno a capo).
   altrimenti H.264; versione desktop o mobile in base allo schermo. Se il video non può partire
   (risparmio dati, animazioni ridotte) mostra la foto del drink finito;
 - **intestazione** che si nasconde scorrendo verso il basso e ricompare salendo;
-- **menu di navigazione mobile**;
+- **arrivo su una sezione** da un'altra pagina (`index.html#rito` ecc.);
 - **animazioni di comparsa** delle sezioni;
 - **conto alla rovescia** fino all'inaugurazione (giovedì 3/12/2026 ore 19:00, rimandata dal 26/11; data e ora in `index.html`, attributo `data-countdown`); finita l'attesa scompare;
 - **stato "aperto/chiuso"** calcolato sugli orari, sempre nell'ora italiana;
@@ -168,7 +174,8 @@ quella vecchia in memoria. Lo stesso vale per una foto o un video sostituiti man
 | `assets/css/style.css` | tutte e 5 le pagine HTML |
 | `assets/css/fonts.css` | tutte e 5 le pagine HTML |
 | `assets/js/carta.js` | `carta.html`, `food.html` |
-| `assets/js/main.js`, `assets/js/properties.js` | `index.html` (properties.js anche carta e food) |
+| `assets/js/main.js` | `index.html` |
+| `assets/js/menu.js`, `assets/js/properties.js` | `index.html`, `carta.html`, `food.html` |
 | `assets/icons/bicchieri.svg` | `index.html` e `assets/js/carta.js` |
 
 ### 4.5 Pagina 404

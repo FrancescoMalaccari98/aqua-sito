@@ -24,7 +24,7 @@
   <link rel="preload" href="assets/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/fonts.css?v=27">
-  <link rel="stylesheet" href="assets/css/style.css?v=49">
+  <link rel="stylesheet" href="assets/css/style.css?v=50">
 </head>
 <body class="carta-page">
   <a class="skip" href="#contenuto">Vai al contenuto</a>
@@ -34,9 +34,33 @@
   <header class="legal-top">
     <div class="wrap legal-top__inner">
       <a class="wordmark" href="index.html" aria-label="Aqua, vai al sito"><svg class="logo" viewBox="0 0 1084 302" aria-hidden="true" focusable="false"><use href="assets/brand/logo.svg#aqua"></use></svg></a>
-      <a class="link-arrow" href="index.html#menu" title="Torna al sito e apri il menu">Il sito <span aria-hidden="true">→</span></a>
+      <button class="link-arrow site-menu-btn" type="button" data-menu-toggle data-label-open="Il sito: apri il menu" aria-controls="mobile-menu" aria-expanded="false" aria-label="Il sito: apri il menu">Il sito <span class="site-menu-btn__ico" aria-hidden="true"></span></button>
     </div>
   </header>
+
+  <!-- The site's navigation menu, opened by "Il sito" without leaving this page (assets/js/menu.js) -->
+  <div class="mobile-menu mobile-menu--pages" id="mobile-menu" data-menu-everywhere hidden>
+    <div class="mobile-menu__top">
+      <a class="wordmark" href="index.html" aria-label="Aqua, vai al sito"><svg class="logo" viewBox="0 0 1084 302" aria-hidden="true" focusable="false"><use href="assets/brand/logo.svg#aqua"></use></svg></a>
+      <button class="burger mobile-menu__close" type="button" data-menu-toggle="close" aria-controls="mobile-menu" aria-expanded="false" aria-label="Chiudi il menu"><span></span><span></span></button>
+    </div>
+    <nav aria-label="Menu del sito">
+      <ol class="mobile-menu__list">
+        <li><a href="index.html#filosofia"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#coppa"></use></svg>Filosofia</a></li>
+        <!-- Tapping "La carta" opens its categories (filled from data/menu.properties) -->
+        <li class="mobile-menu__carta"><a href="carta.html" data-carta-toggle aria-expanded="false" aria-controls="mobile-menu-carta"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#martini"></use></svg>La carta<span class="mobile-menu__more" aria-hidden="true"></span></a>
+          <ul class="mobile-menu__sub" id="mobile-menu-carta" data-carta-links="tutta" aria-label="Categorie della carta" hidden></ul></li>
+        <li><a href="food.html"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#piatto"></use></svg>Menu food</a></li>
+        <li><a href="index.html#rito"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#tumbler"></use></svg>Il rito</a></li>
+        <li><a href="index.html#bar"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#highball"></use></svg>Il bar</a></li>
+        <li><a href="index.html#contatti"><svg class="mobile-menu__ico" aria-hidden="true" focusable="false"><use href="assets/icons/bicchieri.svg?v=2#calice"></use></svg>Dove siamo</a></li>
+      </ol>
+    </nav>
+    <div class="mobile-menu__bottom">
+      <svg class="mobile-menu__q" viewBox="0 0 488 476" aria-hidden="true" focusable="false"><use href="assets/brand/logo.svg#q"></use></svg>
+      <p class="mobile-menu__foot"><span>Corso Umberto I, 31</span><span>Civitanova Marche</span></p>
+    </div>
+  </div>
 
   <!-- All menu content comes from data/food.properties (see assets/js/carta.js) -->
   <main id="contenuto" class="carta wrap" data-carta-page data-source="data/food.properties">
@@ -62,6 +86,7 @@
   </footer>
 
   <script src="assets/js/properties.js?v=2" defer></script>
-  <script src="assets/js/carta.js?v=38" defer></script>
+  <script src="assets/js/menu.js?v=1" defer></script>
+  <script src="assets/js/carta.js?v=39" defer></script>
 </body>
 </html>

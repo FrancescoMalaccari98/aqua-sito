@@ -90,7 +90,7 @@ Come si pubblica, passo per passo: [DOCUMENTAZIONE.md](DOCUMENTAZIONE.md), capit
 - "Beverage" diventa "Alcol free" e va subito dopo Gin tonic (richiesta del locale, 25/11); il Campari Soda, che contiene alcol, passa in Pre dinner
 - Nuova sezione "Amari e distillati" dopo i Vini: Amari 4 €, Grappa bianca 5 €, Grappa barricata 6 €, Whiskey 8 €, Whiskey + 9 € (listino del 25/11, al posto di "Amari da 4" e "Distillati da 8")
 - Carta dei vini (25/11): sezione "Vini" con Bollicine, Bianchi, Rosati e Rossi, prezzi alla bottiglia (confermato); nomi confermati (Arsicci Verdicchio dei Castelli di Jesi Superiore, Château La Forchetière); gli champagne della carta dei vini sono nella sezione Champagne con i loro prezzi
-- Menu di navigazione: "La carta" mostra le sue sezioni (sul telefono si aprono toccandola, sul computer passandoci sopra); il pulsante "Il sito" di carta e menu food apre il menu del sito
+- Menu di navigazione: "La carta" mostra le sue sezioni (sul telefono si aprono toccandola, sul computer passandoci sopra); il pulsante "Il sito" di carta e menu food apre il menu del sito sopra la pagina, senza lasciarla
 - Menu food (9 piatti a 3 € a porzione) con pagina e voce di menu dedicate
 - Pagina 404, icone per la schermata Home del telefono, dati strutturati per Google, robots.txt e sitemap, anteprime social di home, carta e menu food
 - Privacy senza cookie e senza servizi esterni (nessun banner necessario)
