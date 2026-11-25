@@ -1,0 +1,5 @@
+# Package for Aruba, built by deploy/crea-pacchetto-aruba.sh (never committed)
+/aqua-aruba.zip
+
+# Mac system files
+.DS_Store

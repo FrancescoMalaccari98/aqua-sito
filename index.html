@@ -123,10 +123,12 @@
     <!-- ============ HERO ============ -->
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero__media">
-        <!-- Video cover image. Every photo on the site is chosen in data/foto.properties -->
+        <!-- Video cover image. Every photo on the site is chosen in data/foto.properties; the cover is
+             also written here, so it loads at once (it is the largest element of the first screen,
+             which search engines measure) and is there even before the scripts run. -->
         <picture>
-          <source media="(max-width: 640px)" data-foto="hero" data-foto-variante="mobile" width="1080" height="1350">
-          <img class="hero__still" data-foto="hero" width="1920" height="1440" alt="" fetchpriority="high">
+          <source media="(max-width: 640px)" srcset="assets/img/hero-tumbler-1080.jpg" data-foto="hero" data-foto-variante="mobile" width="1080" height="1350">
+          <img class="hero__still" src="assets/img/hero-tumbler-1920.jpg" data-foto="hero" width="1920" height="1440" alt="Un tumbler di cristallo con ghiaccio, pieno di un distillato ambrato, su fondo nero" fetchpriority="high">
         </picture>
         <!-- Video: spirit poured over ice, from the clip 82598-580137787.mp4 supplied on 14/11/2026 (first 26 s at 2x speed).
              The files are chosen in data/foto.properties (hero.video…); the previous red-drink video
