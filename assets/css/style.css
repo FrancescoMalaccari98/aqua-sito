@@ -680,6 +680,8 @@ img[data-foto]:not([src]) { visibility: hidden; }
 .carta { max-width: 860px; padding-block: clamp(36px, 6vw, 72px) clamp(56px, 8vw, 96px); }
 .carta .eyebrow { margin-bottom: 14px; }
 .carta__lead { margin-top: 14px; color: var(--stone); max-width: 52ch; }
+/* link to the other menu (food ↔ drinks): always on its own line, under the intro sentence */
+.carta__switch { margin-top: 12px; }
 .carta__nav {
   position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
   margin: 28px calc(var(--gutter) * -1) 0; padding: 12px var(--gutter);
