@@ -143,7 +143,7 @@ telefono (le ricette lunghe vanno a capo).
 - **intestazione** che si nasconde scorrendo verso il basso e ricompare salendo;
 - **menu di navigazione mobile**;
 - **animazioni di comparsa** delle sezioni;
-- **conto alla rovescia** fino all'inaugurazione (26/11/2026 ore 19:00); finita l'attesa scompare;
+- **conto alla rovescia** fino all'inaugurazione (giovedì 3/12/2026 ore 19:00, rimandata dal 26/11; data e ora in `index.html`, attributo `data-countdown`); finita l'attesa scompare;
 - **stato "aperto/chiuso"** calcolato sugli orari, sempre nell'ora italiana;
 - **anno** nel piè di pagina.
 

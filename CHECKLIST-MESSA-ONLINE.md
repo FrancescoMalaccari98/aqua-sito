@@ -5,7 +5,7 @@ dati da ricevere, decisioni da prendere, passaggi tecnici e altri aspetti.
 **Si aggiorna man mano**: quando arriva un'informazione la voce passa in fondo, tra le cose fatte;
 quando emerge qualcosa di nuovo si aggiunge qui.
 
-Ultimo aggiornamento: **25/11/2026** · Inaugurazione: **giovedì 26/11/2026, ore 19:00**
+Ultimo aggiornamento: **25/11/2026** · Inaugurazione: **giovedì 3/12/2026, ore 19:00** (rimandata dal 26/11)
 Riprende e aggiorna il documento `Aqua_checklist_messa_online.docx` del 13/11/2026.
 
 **Legenda priorità**
@@ -36,7 +36,7 @@ Come si pubblica, passo per passo: [DOCUMENTAZIONE.md](DOCUMENTAZIONE.md), capit
 | 1.13 | **Descrizione delle Signature**: dice "chiedeteci come sono fatte", ma ora gli ingredienti sono scritti. Confermare o cambiare la frase | `data/menu.properties` | CONSIGLIATO |
 | 1.14 | **Gin tonic**: bicchiere in cui si serve e se vale il supplemento per il servizio al tavolo (come per le altre categorie) | `data/menu.properties` | CONSIGLIATO |
 | 1.15 | **Menu food**: se vale il supplemento per il servizio al tavolo | `data/food.properties` | CONSIGLIATO |
-| 1.16 | **Orario della serata di inaugurazione** (26/11): dalle 19:00 il sito mostra gli orari normali del giovedì ("Aperto ora · fino alle 22:00"). Se quella sera si chiude più tardi, imposto un orario speciale | `assets/js/main.js`, `index.html` | CONSIGLIATO (urgente: è domani) |
+| 1.16 | **Orario della serata di inaugurazione** (giovedì 3/12): dalle 19:00 il sito mostra gli orari normali del giovedì ("Aperto ora · fino alle 22:00"). Se quella sera si chiude più tardi, imposto un orario speciale. Confermare anche che si inizia alle 19:00 | `assets/js/main.js`, `index.html` | CONSIGLIATO (entro il 3/12) |
 | 1.17 | **Foto reali del locale**: oggi tutte le foto sono di archivio (Unsplash e Pexels), compresi lo sfondo della carta e quello del menu food. "Dove siamo" mostra un bancone che non è quello di Aqua. Servono JPG di almeno 1200 px, senza scritte; per persone riconoscibili serve il loro consenso scritto | `data/foto.properties`, `assets/img/` | CONSIGLIATO |
 
 ---
