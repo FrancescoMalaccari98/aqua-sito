@@ -85,7 +85,7 @@ Come si pubblica, passo per passo: [DOCUMENTAZIONE.md](DOCUMENTAZIONE.md), capit
 ## 5. Già fatto
 
 - Carta reale del locale (Signature, Pre dinner, After dinner, Gin tonic, Champagne, Vini, Caffetteria, Pasticceria, Salato, Beverage) con bicchieri; ricette di Passion Aqua, Malessere, Ladies & Gentlemen, Scriptorium Sunset, Nautilus
-- Prezzi dei cocktail ricontrollati sul listino del 25/11: tutti a 8 € tranne Boulevardier, Margarita, Martini Cocktail e Dirty Martini a 10 €, Sour a 9 €; gin tonic 8 / 10 / 12 € (base / premium / premium +). Vodka Tini tolto dalla carta (non è nel listino)
+- Prezzi dei cocktail ricontrollati sul listino del 25/11: tutti a 8 € tranne Boulevardier, Margarita, Martini Cocktail e Dirty Martini a 10 €, Sour a 9 €; gin tonic 8 / 10 / 12 € (base / premium / premium +). Vodka Tini in carta a 8 € (non è nel listino del 25/11: prezzo da confermare)
 - Caffetteria, pasticceria e salato ricontrollati sul listino del 25/11; aggiunti Ginseng piccolo (1,50 €) e grande (1,80 €)
 - Carta dei vini (25/11): sezione "Vini" con Bollicine, Bianchi, Rosati e Rossi, prezzi alla bottiglia (confermato); nomi confermati (Arsicci Verdicchio dei Castelli di Jesi Superiore, Château La Forchetière); gli champagne della carta dei vini sono nella sezione Champagne con i loro prezzi
 - Menu di navigazione: "La carta" mostra le sue sezioni (sul telefono si aprono toccandola, sul computer passandoci sopra); il pulsante "Il sito" di carta e menu food apre il menu del sito
