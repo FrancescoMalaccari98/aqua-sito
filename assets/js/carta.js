@@ -167,6 +167,55 @@
         }
       }, { passive: true });
 
+      /* Next / previous category without the bar: swipe left or right on the menu (phones),
+         or the ← → keys (computers). Swiping left goes forward (Pre dinner → After dinner),
+         as when browsing photos; swiping right goes back. */
+      const ids = model.categorie.map((c) => c.id);
+      const currentIndex = () => {
+        const active = links.findIndex((a) => a.classList.contains('is-active'));
+        if (active >= 0) return active;
+        // nothing highlighted yet: the last category whose title has passed 40% of the screen,
+        // or the first one at the top of the page (it is the one already in view)
+        let idx = 0;
+        body.querySelectorAll('.carta__cat').forEach((s, i) => { if (s.getBoundingClientRect().top < window.innerHeight * 0.4) idx = i; });
+        return idx;
+      };
+      const step = (dir) => {
+        if (ids.length < 2) return;
+        const from = currentIndex();
+        const to = Math.min(ids.length - 1, Math.max(0, from + dir));
+        if (to === from) return;
+        history.replaceState(null, '', `#${ids[to]}`);
+        jumpTo(ids[to], true);
+      };
+      const SWIPE_MIN = 60;  // px of horizontal movement
+      const EDGE = 24;       // px from the screen edges, left to the browser's own back/forward gestures
+      let touch = null;
+      page.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        // one finger, not on the category bar (it scrolls sideways by itself), not on the screen edges
+        touch = e.touches.length === 1 && !e.target.closest('[data-carta-nav]')
+          && t.clientX > EDGE && t.clientX < window.innerWidth - EDGE
+          ? { x: t.clientX, y: t.clientY, time: performance.now() } : null;
+      }, { passive: true });
+      page.addEventListener('touchend', (e) => {
+        if (!touch) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touch.x;
+        const dy = t.clientY - touch.y;
+        const quick = performance.now() - touch.time < 700;
+        touch = null;
+        // a clear sideways gesture: long enough and much more horizontal than vertical (not a page scroll)
+        if (quick && Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+      }, { passive: true });
+      page.addEventListener('touchcancel', () => { touch = null; }, { passive: true });
+      document.addEventListener('keydown', (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        if (e.target.closest('input, textarea, select, [contenteditable], [data-carta-nav]')) return;
+        if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+      });
+
       if (location.hash) jumpTo(decodeURIComponent(location.hash.slice(1)), false);
     }).catch(() => {
       body.innerHTML = '<p class="carta__error">Non riusciamo a caricare la carta in questo momento. Chiedete al bancone: ve la raccontiamo noi.</p>';

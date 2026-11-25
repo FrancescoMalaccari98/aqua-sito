@@ -3,6 +3,9 @@
 Documentazione tecnica del sito di **Aqua cocktail bar** (Corso Umberto I, 31 · Civitanova Marche):
 com'è fatto, come si aggiorna e come si pubblica su **Aruba Hosting Linux (hosting condiviso)**.
 
+Cosa manca ancora per andare online (dati, decisioni, passaggi tecnici): vedi
+[CHECKLIST-MESSA-ONLINE.md](CHECKLIST-MESSA-ONLINE.md).
+
 Aggiornata al 25/11/2026.
 
 ---
@@ -118,6 +121,13 @@ Per ogni voce si possono scrivere: `nome`, `ingredienti`, `prezzo`, `bicchiere` 
 calice, flute, tumbler, highball) e `gruppo` (titoletto interno, usato per le famiglie dei gin).
 Le categorie compaiono come schede in alto nell'ordine della riga `categorie`; con una sola categoria
 (il menu food) la barra delle schede non compare.
+
+Per passare da una categoria all'altra, oltre alle schede:
+- **sul telefono** si scorre col dito sulla carta: verso sinistra si va alla categoria successiva
+  (es. da Pre dinner ad After dinner), verso destra alla precedente. I gesti verticali, quelli sulla
+  barra delle schede e quelli che partono dal bordo dello schermo (riservati al "torna indietro" del
+  browser) vengono ignorati;
+- **sul computer** si usano i tasti freccia **→** e **←**.
 
 La riga degli ingredienti si adatta alla larghezza: 16 px su computer (su una riga), almeno 14 px su
 telefono (le ricette lunghe vanno a capo).
@@ -308,7 +318,7 @@ Tutto il resto della cartella del progetto **non va caricato** e non è nel pacc
 | `.nojekyll` | Serve solo a GitHub Pages |
 | `.claude/` | Configurazione degli strumenti di sviluppo |
 | `.DS_Store` (in qualsiasi cartella) | File di sistema del Mac |
-| `README.md`, `DOCUMENTAZIONE.md` | Documentazione interna |
+| `README.md`, `DOCUMENTAZIONE.md`, `CHECKLIST-MESSA-ONLINE.md` | Documentazione interna |
 | `deploy/` | Lo script che crea il pacchetto |
 | `aqua-aruba.zip` | Il pacchetto stesso |
 | `Aqua_checklist_messa_online.docx` | Documento di lavoro |
